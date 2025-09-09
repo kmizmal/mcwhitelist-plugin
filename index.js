@@ -41,13 +41,18 @@ export class TextMsg extends plugin {
             priority: 6,
             rule: [
                 {
-                    reg: '^#mcl\\s*(.*)$',
+                    reg: '^#mcwl\\s*(.*)$',
                     fnc: 'run'
                 },
                 {
                     reg: '^#mcwl$',
                     fnc: 'queryList'
                 }
+                // ,
+                // {
+                //    reg: '^#mcwl\\s*删\\s*(\\S+)$',
+                //    fnc: 'deletePlayer'
+                // }
             ]
         })
 
@@ -63,7 +68,7 @@ export class TextMsg extends plugin {
             sender: e.sender
         });
         const user_id = e.user_id;
-        const player = e.msg.match(/^#mcl\s*(.*)/)[1]
+        const player = e.msg.match(/^#mcwl\s*(.*)/)[1]
         if (!player) {
             e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: 15 })
             return true
@@ -121,7 +126,7 @@ export class TextMsg extends plugin {
         let user;
         if (e.at) user = e.at;else user = e.sender;
         console.log(user);
-        if (!list[user.user_id] || list[e.user_id].length === 0) {
+        if (!list[user.user_id] || list[user.user_id].length === 0) {
             e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
             return true;
         } else {
@@ -130,6 +135,13 @@ export class TextMsg extends plugin {
             return true;
         }
     }
+    // async deletePlayer(e) {
+    //     let user;
+    //     if (e.at) user = e.at;else user = e.sender;
+    //     console.log(user);
+    //     const match = e.msg.match(/^#mcwl\s*(删)?\s*(\S+)?$/);
+    //     const player = match[2]; 
+    // }
 
 
 }
