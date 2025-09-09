@@ -1,0 +1,11 @@
+{
+  "name": "mcwhitelist-plugin",
+  "version": "1.0.0",
+  "author": "kmizmal",
+  "description": "mcwhitelist-plugin",
+  "type": "module",
+  "scripts": {},
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}
