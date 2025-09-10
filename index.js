@@ -10,12 +10,10 @@ const __dirname = path.dirname(__filename);
 
 const configPath = path.join(__dirname, "config.yaml");
 
-let config = {};
-if (fs.existsSync(configPath)) {
-    const file = fs.readFileSync(configPath, "utf8");
-    config = YAML.parse(file);
-} else {
-    console.warn("配置文件被我吃掉力", configPath);
+
+if (!fs.existsSync(configPath)) 
+{
+    console.warn("配置文件被小笨蛋吃掉力", configPath);
 }
 const listPath = path.join(__dirname, "list.json");
 let list = {};
@@ -41,34 +39,38 @@ export class TextMsg extends plugin {
             priority: 6,
             rule: [
                 {
-                    reg: '^#mcw\\s*(.*)$',
+                    reg: '^#?mcwl$',
+                    fnc: 'queryList'
+                },
+                {
+                    reg: '^#?mcw\\s*删\\s*(\\S+)?$',
+                    fnc: 'deletePlayer'
+                },
+                {
+                    reg: '^#?mcw(?!l)\\s+(\\S+)$',
                     fnc: 'run'
                 },
                 {
-                    reg: '^#mcwl$',
-                    fnc: 'queryList'
+                    reg: '^#?mcw(?:help|帮助)$',
+                    fnc: 'help'
                 }
-                // ,
-                // {
-                //    reg: '^#mcwl\\s*删\\s*(\\S+)$',
-                //    fnc: 'deletePlayer'
-                // }
+
             ]
         })
 
     }
 
     async run(e) {
-
-        if (!list[e.user_id]) list[e.user_id] = [];
-        console.log({
-            user_id: e.user_id,
-            message: e.message,
-            nickname: e.nickname,
-            sender: e.sender
-        });
         const user_id = e.user_id;
-        const player = e.msg.match(/^#mcw\s*(.*)/)[1]
+        if (!list[user_id]) list[user_id] = [];
+        // console.log({
+        //     user_id: e.user_id,
+        //     message: e.message,
+        //     nickname: e.nickname,
+        //     sender: e.sender
+        // });
+
+        const player = e.msg.match(/^#mcw(?!l)\s+(\S+)$/)[1];
         if (!player) {
             e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: 15 })
             return true
@@ -76,12 +78,12 @@ export class TextMsg extends plugin {
         // 输出 player（调试用）
         // logger.mark(`player = ${player}`)
 
-        if (list[e.user_id].includes(player)) {
+        if (list[user_id].includes(player)) {
             e.reply(`${player}已经在白名单了喵~`, true, { recallMsg: 15 });
             return true;
         }
 
-        const res = await this.getapi(player);
+        const res = await this.getapi(player, "add");
         if (res == false) {
             e.reply("请求出错，请检查配置或联系管理员喵~", true, { recallMsg: 15 })
         } else {
@@ -90,19 +92,19 @@ export class TextMsg extends plugin {
             e.reply(`${actualPlayer}添加白名单了喵，若无效请联系管理员~`, true, { recallMsg: 15 })
             list[user_id].push(player);
             fs.writeFileSync(listPath, JSON.stringify(list, null, 2), "utf8");
-            e.reply(`已添加${list[user_id].length + 1}个白名单`, true);
+            e.reply(`已添加${list[user_id].length}个白名单`, true);
         }
-
-
-
 
         return true
     }
 
-    async getapi(player) {
+    async getapi(player, work) {
         try {
+            const file = fs.readFileSync(configPath, "utf8");
+            const config = YAML.parse(file);
+
             const apiUrl = config.mcwhapi.startsWith('http') ? config.mcwhapi : `http://${config.mcwhapi}`;
-            const response = await fetch(`${apiUrl}/whitelist/add?player=${player}`, {
+            const response = await fetch(`${apiUrl}/whitelist/${work}?player=${player}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -125,7 +127,15 @@ export class TextMsg extends plugin {
     }
     async queryList(e) {
         let user;
-        if (e.at) user = e.at; else user = e.sender;
+        if (e.at) {
+            // 如果命令带了 @，就根据 at 的 QQ 获取群成员
+            const curGroup = e.group || Bot?.pickGroup(e.group_id);
+            const membersMap = await curGroup?.getMemberMap();
+            user = membersMap.get(parseInt(e.at));
+        } else {
+            // 否则就用消息发送者自己
+            user = e.sender;
+        }
         console.log(user);
         if (!list[user.user_id] || list[user.user_id].length === 0) {
             e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
@@ -136,13 +146,50 @@ export class TextMsg extends plugin {
             return true;
         }
     }
-    // async deletePlayer(e) {
-    //     let user;
-    //     if (e.at) user = e.at;else user = e.sender;
-    //     console.log(user);
-    //     const match = e.msg.match(/^#mcwl\s*(删)?\s*(\S+)?$/);
-    //     const player = match[2]; 
-    // }
+    async deletePlayer(e) {
+        let user;
+        if (e.at) {
+            // 如果命令带了 @，就根据 at 的 QQ 获取群成员
+            const curGroup = e.group || Bot?.pickGroup(e.group_id);
+            const membersMap = await curGroup?.getMemberMap();
+            user = membersMap.get(parseInt(e.at));
+        } else {
+            // 否则就用消息发送者自己
+            user = e.sender;
+        }
+        console.log(user);
+        const match = e.msg.match(/^#mcw\s*删\s*(\S+)?$/);
 
+        const player = match ? match[1].trim() : null;
+        if (player) {
+            if (!list[user.user_id] || list[user.user_id].length === 0) {
+                e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
+                return true;
+            } else {
+                //todo: 删除指定玩家
+                const index = list[user.user_id].findIndex(p => p.toLowerCase() === player.toLowerCase());
 
+                if (index === -1) {
+                    e.reply(`${player}不在你的白名单里喵~`, true, { recallMsg: 15 });
+                    return true;
+                } else {
+                    list[user.user_id].splice(index, 1);
+                    fs.writeFileSync(listPath, JSON.stringify(list, null, 2), "utf8");
+                    e.reply(`已删除${player}`, true);
+                    return true;
+                }
+            }
+        }
+    }
+
+    async help(e) {
+        e.reply(`白名单管理帮助：
+1. 添加白名单: #mcw 玩家名
+2. 查询白名单: #mcwl （可@别人）
+3. 删除白名单: #mcw 删 玩家名 （或不写玩家名则删除最后一个）
+4. 查看帮助: #mcwhelp / mcw帮助
+`, true);
+
+        return true;
+    }
 }
