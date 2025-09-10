@@ -41,7 +41,7 @@ export class TextMsg extends plugin {
             priority: 6,
             rule: [
                 {
-                    reg: '^#mcwl\\s*(.*)$',
+                    reg: '^#mcw\\s*(.*)$',
                     fnc: 'run'
                 },
                 {
@@ -88,12 +88,13 @@ export class TextMsg extends plugin {
             const match = res.match(/Player\s+(\S+)\s+added/i);
             const actualPlayer = match ? match[1] : null;
             e.reply(`${actualPlayer}添加白名单了喵，若无效请联系管理员~`, true, { recallMsg: 15 })
+            list[user_id].push(player);
+            fs.writeFileSync(listPath, JSON.stringify(list, null, 2), "utf8");
             e.reply(`已添加${list[user_id].length + 1}个白名单`, true);
         }
 
 
-        list[user_id].push(player);
-        fs.writeFileSync(listPath, JSON.stringify(list, null, 2), "utf8");
+
 
         return true
     }
@@ -124,7 +125,7 @@ export class TextMsg extends plugin {
     }
     async queryList(e) {
         let user;
-        if (e.at) user = e.at;else user = e.sender;
+        if (e.at) user = e.at; else user = e.sender;
         console.log(user);
         if (!list[user.user_id] || list[user.user_id].length === 0) {
             e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });

@@ -54,7 +54,7 @@ mcwhkey: your_secret_token # 鉴权密钥
 - 添加白名单
 
   ```
-  #mcwl 玩家名
+  #mcw 玩家名
   ```
 
   机器人会调用接口并返回是否添加成功。
