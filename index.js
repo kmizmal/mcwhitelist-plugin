@@ -68,7 +68,7 @@ export class TextMsg extends plugin {
             sender: e.sender
         });
         const user_id = e.user_id;
-        const player = e.msg.match(/^#mcwl\s*(.*)/)[1]
+        const player = e.msg.match(/^#mcw\s*(.*)/)[1]
         if (!player) {
             e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: 15 })
             return true
