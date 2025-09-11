@@ -9,12 +9,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const configPath = path.join(__dirname, "config.yaml");
+const expampleconfigPath = path.join(__dirname, "config.example.yaml");
 
 
-if (!fs.existsSync(configPath)) 
-{
-    console.warn("配置文件被小笨蛋吃掉力", configPath);
+
+if (!fs.existsSync(configPath)) {
+    console.warn("配置文件被小笨蛋吃掉力");
+    try {
+        fs.promises.copyFile(expampleconfigPath, configPath);
+        console.info("成功创建新的配置文件", configPath);
+    } catch (err) {
+        console.error("创建配置文件失败", err);
+    }
 }
+
 const listPath = path.join(__dirname, "list.json");
 let list = {};
 if (fs.existsSync(listPath)) {
@@ -39,7 +47,7 @@ export class TextMsg extends plugin {
             priority: 6,
             rule: [
                 {
-                    reg: '^#?mcwl$',
+                    reg: '^#?mcwl',
                     fnc: 'queryList'
                 },
                 {
@@ -53,6 +61,10 @@ export class TextMsg extends plugin {
                 {
                     reg: '^#?mcw(?:help|帮助)$',
                     fnc: 'help'
+                },
+                {
+                    reg: '^#?mcwf(\\S+)$',
+                    fnc: 'queryuesr'
                 }
 
             ]
@@ -70,7 +82,13 @@ export class TextMsg extends plugin {
         //     sender: e.sender
         // });
 
-        const player = e.msg.match(/^#mcw(?!l)\s+(\S+)$/)[1];
+        const match = e.msg.match(/^#?mcw(?!l)\s+(\S+)$/);
+        if (!match) {
+            e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: 15 });
+            return true;
+        }
+
+        const player = match[1].trim();
         if (!player) {
             e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: 15 })
             return true
@@ -80,6 +98,11 @@ export class TextMsg extends plugin {
 
         if (list[user_id].includes(player)) {
             e.reply(`${player}已经在白名单了喵~`, true, { recallMsg: 15 });
+            return true;
+        }
+
+        if (list[user_id].length >= YAML.parse(fs.readFileSync(configPath, "utf8")).maxbind) {
+            e.reply(`你添加的白名单数已达上限喵~,也许你可以通过[#mcw删 <用户名>]的方式删掉一些。(可以通过[#mcwl]查询已绑定的情况)`, true);
             return true;
         }
 
@@ -109,15 +132,14 @@ export class TextMsg extends plugin {
                 headers: {
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${config.mcwhkey}`
-                }
+                },
+                timeout: 10000 // 设置超时时间为10秒
             });
 
             if (response.status == 401) { console.warn('鉴权密钥错误'); return false }
-            // console.log(response.status)
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
             const data = await response.text();
-            // console.log('GET 返回数据:', data);
 
             return data;
         } catch (err) {
@@ -128,12 +150,10 @@ export class TextMsg extends plugin {
     async queryList(e) {
         let user;
         if (e.at) {
-            // 如果命令带了 @，就根据 at 的 QQ 获取群成员
             const curGroup = e.group || Bot?.pickGroup(e.group_id);
             const membersMap = await curGroup?.getMemberMap();
             user = membersMap.get(parseInt(e.at));
         } else {
-            // 否则就用消息发送者自己
             user = e.sender;
         }
         console.log(user);
@@ -158,7 +178,7 @@ export class TextMsg extends plugin {
             user = e.sender;
         }
         console.log(user);
-        const match = e.msg.match(/^#mcw\s*删\s*(\S+)?$/);
+        const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/);
 
         const player = match ? match[1].trim() : null;
         if (player) {
@@ -166,7 +186,6 @@ export class TextMsg extends plugin {
                 e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
                 return true;
             } else {
-                //todo: 删除指定玩家
                 const index = list[user.user_id].findIndex(p => p.toLowerCase() === player.toLowerCase());
 
                 if (index === -1) {
@@ -175,6 +194,7 @@ export class TextMsg extends plugin {
                 } else {
                     list[user.user_id].splice(index, 1);
                     fs.writeFileSync(listPath, JSON.stringify(list, null, 2), "utf8");
+                    //todo: 从服务器删除指定玩家
                     e.reply(`已删除${player}`, true);
                     return true;
                 }
@@ -186,10 +206,28 @@ export class TextMsg extends plugin {
         e.reply(`白名单管理帮助：
 1. 添加白名单: #mcw 玩家名
 2. 查询白名单: #mcwl （可@别人）
-3. 删除白名单: #mcw 删 玩家名 （或不写玩家名则删除最后一个）
-4. 查看帮助: #mcwhelp / mcw帮助
+3. 查询玩家绑定情况: #mcwf 玩家名
+4. 删除白名单: #mcw 删 玩家名 （或不写玩家名则删除最后一个）
+5. 查看帮助: #mcwhelp / mcw帮助
 `, true);
 
+        return true;
+    }
+    async queryuesr(e) {
+        const match = e.msg.match(/^#?mcwf(\S+)$/);
+        const player = match ? match[1].trim() : null;
+        if (!player) {
+            e.reply("请检查输入喵~", true, { recallMsg: 15 })
+            return true
+        }
+        const playerLower = player.toLowerCase();
+        for (const [user_id, players] of Object.entries(list)) {
+            if (players.some(p => p.toLowerCase() === playerLower)) {
+                e.reply(`${player}在 ${user_id} 的白名单里喵~`, true);
+                return true;
+            }
+        }
+        e.reply(`未找到${player}`)
         return true;
     }
 }

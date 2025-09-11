@@ -64,7 +64,7 @@ export function supportGuoba() {
           component: 'Input',
           required: true,
           componentProps: {
-            placeholder: '例如：http://127.0.0.1:3000'
+            placeholder: '例如：http://127.0.0.1:6626'
           }
         },
         {
@@ -76,14 +76,24 @@ export function supportGuoba() {
           componentProps: {
             placeholder: '请输入鉴权密钥'
           }
-        }
+        },
+        {
+          field: 'maxbind',
+          label: '单个用户最大绑定数',
+          component: 'InputNumber',
+          required: true,
+          componentProps: {
+            addonAfter: '个'
+          }
+        },
       ],
 
       // 读取配置，用于前端显示
       getConfigData() {
         return {
           mcwhapi: config.mcwhapi || '',
-          mcwhkey: config.mcwhkey || ''
+          mcwhkey: config.mcwhkey || '',
+          maxbind: config.maxbind || 3,
         }
       },
 
