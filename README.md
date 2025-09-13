@@ -15,7 +15,7 @@
 - 支持通过`#mcws` 调用 mcstatus.io 与 crafatar.com 查询服务器状态
 
 
-![mfi1evuh](https://img.zmal.top/20250913/mfi1evuh.73ce16bf.2dp1z90uy3.jpg)
+![2410e4b1edd0731f97e2f3d12c250559](https://img.zmal.top/20250913/2410e4b1edd0731f97e2f3d12c250559.7snkhqguik.jpg)
 ---
 
 ## 安装方法

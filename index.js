@@ -13,8 +13,6 @@ const __dirname = path.dirname(__filename);
 const PATHS = {
     config: path.join(__dirname, "config.yaml"),
     exampleConfig: path.join(__dirname, "config.example.yaml"),
-    list: path.join(__dirname, "list.json"),
-    avatarCache: path.join(__dirname, 'resources/avatars/avatar-cache.json'),
     avatarDir: path.join(__dirname, 'resources/avatars'),
     background: path.join(__dirname, 'resources/background.jpg')
 };
@@ -25,7 +23,7 @@ const CONFIG = {
     AVATAR_SIZE: 64,
     RENDER_SCALE: 1.2,
     RECALL_TIME: 15,
-    AVATAR_DELAY_RANGE: { min: 20, max: 200 } // ms
+    AVATAR_DELAY_RANGE: { min: 120, max: 500 } // ms
 };
 
 class McWhitelistManager {
@@ -38,9 +36,6 @@ class McWhitelistManager {
 
     async initialize() {
         try {
-            // 确保头像目录存在
-            await this.ensureDirectoryExists(PATHS.avatarDir);
-
             // 初始化配置文件
             await this.initializeConfig();
 
@@ -56,6 +51,7 @@ class McWhitelistManager {
             throw error;
         }
     }
+
 
     async ensureDirectoryExists(dir) {
         try {
@@ -93,44 +89,56 @@ class McWhitelistManager {
 
     async loadAvatarCache() {
         try {
-            const cacheData = await fs.readFile(PATHS.avatarCache, 'utf-8');
-            this.avatarCache = JSON.parse(cacheData);
-        } catch {
-            this.avatarCache = {};
+            const cacheData = await redis.get('avatarCache');
+            if (cacheData) {
+                this.avatarCache = JSON.parse(cacheData);
+            } else {
+                this.avatarCache = {};
+            }
+        } catch (error) {
+            console.error("加载头像缓存失败:", error);
         }
     }
 
+
     async loadPlayerList() {
         try {
-            const content = await fs.readFile(PATHS.list, "utf8");
-            this.list = content.trim() ? JSON.parse(content) : {};
-        } catch {
+            const content = await redis.get('playerList');
+            if (content) {
+                this.list = JSON.parse(content);
+            } else {
+                this.list = {};
+            }
+        } catch (error) {
+            console.error("加载玩家列表失败:", error);
             this.list = {};
         }
     }
 
+
     async savePlayerList() {
         try {
-            await fs.writeFile(PATHS.list, JSON.stringify(this.list, null, 2), "utf8");
+            await redis.set('playerList', JSON.stringify(this.list));
         } catch (error) {
             console.error("保存玩家列表失败:", error);
-            throw error;
         }
     }
 
+
     async saveAvatarCache() {
         try {
-            await fs.writeFile(PATHS.avatarCache, JSON.stringify(this.avatarCache, null, 2));
+            await redis.set('avatarCache', JSON.stringify(this.avatarCache));
         } catch (error) {
             console.error("保存头像缓存失败:", error);
         }
     }
 
+
     async makeApiRequest(player, action) {
         try {
             const config = await this.loadConfig();
-            const apiUrl = config.mcwhapi.startsWith('http') 
-                ? config.mcwhapi 
+            const apiUrl = config.mcwhapi.startsWith('http')
+                ? config.mcwhapi
                 : `http://${config.mcwhapi}`;
 
             const controller = new AbortController();
@@ -169,7 +177,7 @@ class McWhitelistManager {
 
     async downloadAvatar(uuid, index = 0) {
         const filePath = path.join(PATHS.avatarDir, `${uuid}.png`);
-        
+
         // 检查是否需要更新头像
         if (this.avatarCache[uuid] === this.today && fsSync.existsSync(filePath)) {
             return true;
@@ -177,8 +185,8 @@ class McWhitelistManager {
 
         try {
             // 添加随机延迟以避免请求过于频繁
-            const delay = Math.random() * 
-                (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) + 
+            const delay = Math.random() *
+                (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) +
                 CONFIG.AVATAR_DELAY_RANGE.min;
             await new Promise(resolve => setTimeout(resolve, index * delay));
 
@@ -269,7 +277,7 @@ export class TextMsg extends plugin {
 
     async queryList(e) {
         await this.ensureInitialized();
-        
+
         try {
             const user = await this.manager.getUserFromMessage(e);
             const userList = this.manager.list[user.user_id] || [];
@@ -291,7 +299,7 @@ export class TextMsg extends plugin {
 
     async addPlayer(e) {
         await this.ensureInitialized();
-        
+
         const user_id = e.user_id;
         if (!this.manager.list[user_id]) {
             this.manager.list[user_id] = [];
@@ -319,7 +327,7 @@ export class TextMsg extends plugin {
         const config = await this.manager.loadConfig();
         if (this.manager.list[user_id].length >= config.maxbind) {
             e.reply(
-                `你添加的白名单数已达上限喵~,也许你可以通过[#mcw删 <用户名>]的方式删掉一些。(可以通过[#mcwl]查询已绑定的情况)`, 
+                `你添加的白名单数已达上限喵~,也许你可以通过[#mcw删 <用户名>]的方式删掉一些。(可以通过[#mcwl]查询已绑定的情况)`,
                 true
             );
             return true;
@@ -334,10 +342,10 @@ export class TextMsg extends plugin {
 
             const match = result.match(/Player\s+(\S+)\s+added/i);
             const actualPlayer = match ? match[1] : player;
-            
+
             this.manager.list[user_id].push(player);
             await this.manager.savePlayerList();
-            
+
             e.reply(`${actualPlayer}添加白名单了喵，若无效请联系管理员~`, true, { recallMsg: CONFIG.RECALL_TIME });
             e.reply(`已添加${this.manager.list[user_id].length}个白名单`, true);
             return true;
@@ -350,39 +358,57 @@ export class TextMsg extends plugin {
 
     async deletePlayer(e) {
         await this.ensureInitialized();
-        
+
         try {
+            // 获取用户信息
             const user = await this.manager.getUserFromMessage(e);
-            const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/);
+            const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/); // 正则匹配玩家名
             const player = match ? match[1]?.trim() : null;
 
-            if (!this.manager.list[user.user_id] || this.manager.list[user.user_id].length === 0) {
-                e.reply("你还没有添加任何白名单喵~", true, { recallMsg: CONFIG.RECALL_TIME });
-                return true;
-            }
-
+            // 如果没有玩家名，默认删除最后一个玩家
             if (!player) {
-                // 删除最后一个玩家
-                const removedPlayer = this.manager.list[user.user_id].pop();
-                await this.manager.savePlayerList();
-                e.reply(`已删除${removedPlayer}`, true);
-                return true;
+                if (this.manager.list[user.user_id] && this.manager.list[user.user_id].length > 0) {
+                    const removedPlayer = this.manager.list[user.user_id].pop(); // 删除最后一个
+                    await this.manager.savePlayerList(); // 保存更新后的白名单
+                    e.reply(`已删除 ${removedPlayer} 的白名单喵~`, true); // 回复删除的玩家
+                    return true;
+                } else {
+                    e.reply("你还没有添加任何白名单喵~", true, { recallMsg: CONFIG.RECALL_TIME });
+                    return true;
+                }
             }
 
-            const index = this.manager.list[user.user_id].findIndex(
-                p => p.toLowerCase() === player.toLowerCase()
-            );
+            // 查找该玩家是否在白名单中
+            const index = this.manager.list[user.user_id].findIndex(p => p.toLowerCase() === player.toLowerCase());
 
             if (index === -1) {
                 e.reply(`${player}不在你的白名单里喵~`, true, { recallMsg: CONFIG.RECALL_TIME });
                 return true;
             }
 
-            this.manager.list[user.user_id].splice(index, 1);
-            await this.manager.savePlayerList();
-            
-            // TODO: 从服务器删除指定玩家
-            e.reply(`已删除${player}`, true);
+            // 删除指定玩家
+            this.manager.list[user.user_id].splice(index, 1); // 删除指定玩家
+            await this.manager.savePlayerList(); // 保存更新后的白名单
+
+            // 请求 API 删除服务器中的该玩家
+            try {
+                const result = await this.manager.makeApiRequest(player, "remove");
+                if (result === false) {
+                    e.reply("请求出错，请检查配置或联系管理员喵~", true, { recallMsg: CONFIG.RECALL_TIME });
+                    return true;
+                }
+
+                // 解析 API 返回的删除成功信息
+                const match = result.match(/Player\s+(\S+)\s+removed/i);
+                const actualPlayer = match ? match[1] : player;
+
+                e.reply(`已从服务器中删除 ${actualPlayer} 的白名单喵~`, true); // 回复删除成功
+            } catch (error) {
+                console.error("删除玩家API请求失败:", error);
+                e.reply("从服务器删除玩家失败，请稍后重试喵~", true, { recallMsg: CONFIG.RECALL_TIME });
+                return true;
+            }
+
             return true;
         } catch (error) {
             console.error("删除玩家失败:", error);
@@ -390,6 +416,7 @@ export class TextMsg extends plugin {
             return true;
         }
     }
+
 
     async help(e) {
         const helpText = `白名单管理帮助：
@@ -406,10 +433,10 @@ export class TextMsg extends plugin {
 
     async queryUser(e) {
         await this.ensureInitialized();
-        
+
         const match = e.msg.match(/^#?mcwf(\S+)$/);
         const player = match ? match[1].trim() : null;
-        
+
         if (!player) {
             e.reply("请检查输入喵~", true, { recallMsg: CONFIG.RECALL_TIME });
             return true;
@@ -422,18 +449,18 @@ export class TextMsg extends plugin {
                 return true;
             }
         }
-        
+
         e.reply(`未找到${player}`, true);
         return true;
     }
 
     async status(e) {
         await this.ensureInitialized();
-        
+
         try {
             const config = await this.manager.loadConfig();
             const server = config.mcserver;
-            
+
             if (!server || server.trim() === "") {
                 e.reply("请先在配置文件中设置mcserver喵~", true);
                 return true;
@@ -475,6 +502,19 @@ export class TextMsg extends plugin {
             ]);
 
             const filteredList = avatarResults.filter(p => p !== null);
+            const apiUrl = config.mcwhapi.startsWith('http')
+                ? config.mcwhapi
+                : `http://${config.mcwhapi}`;
+                
+            const tpsRes = await fetch(`${apiUrl}/server/tps`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${config.mcwhkey}`
+                }
+            });
+
+           const tpsData= parseFloat(await tpsRes.text()).toFixed(2);
 
             // 保存头像缓存
             await this.manager.saveAvatarCache();
@@ -483,7 +523,8 @@ export class TextMsg extends plugin {
                 players: filteredList,
                 arkCount,
                 server,
-                serverName
+                serverName,
+                tps: tpsData,
             }, { scale: CONFIG.RENDER_SCALE, e });
 
         } catch (error) {
