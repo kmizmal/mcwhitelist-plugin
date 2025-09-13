@@ -3,273 +3,284 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Minecraft Server 在线玩家</title>
-    <meta name="color-scheme" content="dark light" />
+    <title>Minecraft Server Status</title>
     <style>
       :root {
         --bg: #0b1220;
-        --card: rgba(255, 255, 255, 0.06);
-        --muted: #93a4c5;
-        --text: #e7edf8;
-        --brand: #7dd3fc; /* 天青 */
-        --brand-2: #a78bfa; /* 紫 */
-        --ok: #22c55e;
-        --warn: #f59e0b;
-        --bad: #ef4444;
-        --chip: rgba(255, 255, 255, 0.08);
+        --card-bg: rgba(255, 255, 255, 0.06);
+        --text-primary: #e7edf8;
+        --text-secondary: #9fdefa;
+        --text-accent: #66ccff;
+        --brand: #7dd3fc;
+        --brand-secondary: #a78bfa;
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --chip-bg: rgba(255, 255, 255, 0.08);
         --shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.25);
         --radius-xl: 18px;
         --radius: 12px;
       }
 
-      @media (prefers-color-scheme: light) {
-        :root {
-          --bg: #eef2ff;
-          --card: rgba(255, 255, 255, 0.85);
-          --muted: #5b647a;
-          --text: #0b1220;
-          --chip: rgba(0, 0, 0, 0.06);
-          --shadow: 0 10px 25px rgba(23, 24, 35, 0.08), 0 2px 6px rgba(23, 24, 35, 0.08);
-        }
-        body {
-          background-image:
-            radial-gradient(800px 300px at 15% -20%, #dbeafe, transparent),
-            radial-gradient(800px 300px at 110% 10%, #fae8ff, transparent);
-        }
-      }
-
       * {
         box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-      html,
-      body {
+
+      html, body {
         height: 400px;
         width: 800px;
       }
+
       body {
-        margin: 0;
-        font-family: "Segoe UI";
-        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: var(--text-primary);
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 28px;
-        background: url("<%= _res_path %>/background.jpg") no-repeat center center;
-        background-size: cover; /* 背景图片自适应容器 */
-        background-color: var(--bg); /* 备用背景色 */
+        padding: 20px;
+        background: var(--bg);
+        -webkit-font-smoothing: antialiased;
       }
 
-      .wrap {
-        width: 800px;
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background: url("<%= _res_path %>/background.jpg") center/cover no-repeat;
+        opacity: 0.6;
+        z-index: -1;
       }
 
-      .header {
-        opacity: 0.85;
+      .container {
+        width: 100%;
+        max-width: 800px;
         position: relative;
         border-radius: var(--radius-xl);
-        background:
-          linear-gradient(135deg, rgba(125, 211, 252, 0.15), rgba(167, 139, 250, 0.12)), var(--card);
-        backdrop-filter: blur(8px);
+        background: linear-gradient(135deg, rgba(79, 154, 149, 0.5) 0%, rgba(110, 42, 156, 0.5) 100%);
+        backdrop-filter: blur(12px);
         box-shadow: var(--shadow);
-        padding: 22px 22px 16px 22px;
+        padding: 24px;
         overflow: hidden;
       }
-      .header::after {
+
+      .container::before {
         content: "";
         position: absolute;
-        inset: -2px;
+        inset: 0;
         border-radius: inherit;
         padding: 2px;
         background: linear-gradient(135deg, #7dd3fc55, #a78bfa55);
-        -webkit-mask:
-          linear-gradient(#000 0 0) content-box,
-          linear-gradient(#000 0 0);
-        -webkit-mask-composite: xor;
-        mask-composite: exclude;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: xor;
         pointer-events: none;
+        opacity: 0.8;
       }
 
-      .row {
+      .header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .title-section h1 {
+        font-weight: 800;
+        font-size: clamp(24px, 4vw, 32px);
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #ffffff, #e0f2fe);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        margin-bottom: 4px;
+      }
+
+      .subtitle {
+        color: var(--text-accent);
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0.9;
+      }
+
+      .stats-bar {
         display: flex;
         gap: 12px;
         flex-wrap: wrap;
         align-items: center;
       }
-      .split {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
-      }
 
-      .title {
-        font-weight: 800;
-        font-size: clamp(22px, 3.3vw, 32px);
-        letter-spacing: 0.5px;
-      }
-      .sub {
-        color: var(--muted);
-        font-size: 14px;
-      }
-
-      .chip {
+      .stat-chip {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 8px 10px;
-        border-radius: 999px;
-        background: var(--chip);
-        color: var(--text);
+        padding: 8px 12px;
+        border-radius: 20px;
+        background: var(--chip-bg);
+        backdrop-filter: blur(8px);
+        color: var(--text-primary);
         font-weight: 600;
-        font-size: 14px;
-      }
-      .chip .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 999px;
-        background: currentColor;
-      }
-      .chip.ok {
-        color: var(--ok);
-      }
-      .chip.warn {
-        color: var(--warn);
-      }
-      .chip.bad {
-        color: var(--bad);
-      }
-      .chip.brand {
-        color: var(--brand);
+        font-size: 13px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
       }
 
-      .toolbar {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
+      .stat-chip .indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
       }
-      .grid {
-        margin-top: 16px;
+
+      .stat-chip.success { color: var(--success); }
+      .stat-chip.warning { color: var(--warning); }
+      .stat-chip.brand { color: var(--brand); }
+
+      #timestamp {
+        position: absolute;
+        top: 80px;
+        right: 24px;
+        color: var(--text-accent);
+        font-size: 12px;
+        font-weight: 500;
+        opacity: 0.8;
+      }
+
+      .players-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
         gap: 12px;
+        margin-top: 8px;
       }
 
-      .card {
-        background: var(--card);
-        backdrop-filter: blur(6px);
+      .player-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(8px);
         border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        opacity: 0.9;
-        padding: 14px 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 16px;
         display: flex;
         align-items: center;
         gap: 12px;
-        /* border: 1px solid rgba(255, 255, 255, 0.08); */
-        transition:
-          transform 0.08s ease,
-          box-shadow 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        position: relative;
+        overflow: hidden;
       }
 
-      .avatar {
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        flex: 0 0 auto;
+      .player-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
         overflow: hidden;
-        position: relative;
-        background: #0e1729;
-        display: grid;
-        place-items: center;
+        background: linear-gradient(135deg, #1e293b, #334155);
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
-      .avatar img {
+
+      .player-avatar img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
       }
-      .avatar svg {
-        width: 65%;
-        opacity: 0.9;
-      }
 
-      .info {
-        min-width: 0;
-      }
-      .name {
+      .player-name {
         font-weight: 700;
         font-size: 15px;
+        color: var(--text-secondary);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
       }
+
+      .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--text-primary);
+        opacity: 0.7;
+      }
+
+      .empty-state .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+
+      /* Static card colors - no JavaScript needed */
+      .player-card:nth-child(9n+1) { background: linear-gradient(135deg, rgba(255, 162, 196, 0.15), rgba(255, 162, 196, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+2) { background: linear-gradient(135deg, rgba(0, 188, 212, 0.15), rgba(0, 188, 212, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+3) { background: linear-gradient(135deg, rgba(3, 169, 244, 0.15), rgba(3, 169, 244, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+4) { background: linear-gradient(135deg, rgba(0, 165, 150, 0.15), rgba(0, 165, 150, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+5) { background: linear-gradient(135deg, rgba(255, 125, 115, 0.15), rgba(255, 125, 115, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+6) { background: linear-gradient(135deg, rgba(245, 188, 208, 0.15), rgba(245, 188, 208, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+7) { background: linear-gradient(135deg, rgba(174, 232, 254, 0.15), rgba(174, 232, 254, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+8) { background: linear-gradient(135deg, rgba(102, 204, 255, 0.15), rgba(102, 204, 255, 0.05)), var(--card-bg); }
+      .player-card:nth-child(9n+0) { background: linear-gradient(135deg, rgba(57, 197, 187, 0.15), rgba(57, 197, 187, 0.05)), var(--card-bg); }
     </style>
   </head>
   <body>
-    <div class="wrap">
+    <main class="container">
       <header class="header">
-        <div class="split">
-          <div>
-            <div class="title">{{serverName}}</div>
-            <div class="sub">{{server}}</div>
-          </div>
-          <div class="toolbar">
-            <div class="chip brand" title="每秒刻数 (20 为满)">
-              <span class="dot"></span><span>TPS <span>{{tps}}</span></span>
-            </div>
-            <div class="chip ok" id="realChip" title="真人玩家">
-              玩家<span>{{players.length}}</span>
-            </div>
-            <div class="chip warn" id="botChip" title="假人/机器人">
-              🤖 假人 <span> {{arkCount}}</span>
-            </div>
-          </div>
+        <div class="title-section">
+          <h1>{{serverName}}</h1>
+          <div class="subtitle">{{server}}</div>
         </div>
-        <div class="row" style="margin-top: 10px">
-          <div class="sub">当前时间：<span id="now">--:--:--</span></div>
-        </div>
-
-        <div class="grid">
-          <% players.forEach(player => { %>
-          <div class="card">
-            <div class="avatar"><img src="<%= _res_path %>/avatars/<%= player.uuid %>.png" /></div>
-            <div class="info">
-              <div class="name"><%= player.name %></div>
-            </div>
+        
+        <div class="stats-bar">
+          <div class="stat-chip brand">
+            <span class="indicator"></span>
+            <span>TPS <strong>20.0</strong></span>
           </div>
-
-          <% }) %>
+          <div class="stat-chip success">
+            <span class="indicator"></span>
+            <span>玩家 <strong>{{players.length}}</strong></span>
+          </div>
+          <% if (arkCount > 0) { %>
+          <div class="stat-chip warning">
+            <span class="indicator"></span>
+            <span>假人 <strong>{{arkCount}}</strong></span>
+          </div>
+          <% } %>
         </div>
       </header>
-    </div>
+
+      <div id="timestamp">
+        <span id="current-time">--:--:--</span>
+      </div>
+
+      <% if (players && players.length > 0) { %>
+      <section class="players-grid">
+        <% players.forEach(player => { %>
+        <div class="player-card">
+          <div class="player-avatar">
+            <img src="<%= _res_path %>/avatars/<%= player.uuid %>.png" alt="<%= player.name %>">
+          </div>
+          <div class="player-name"><%= player.name %></div>
+        </div>
+        <% }); %>
+      </section>
+      <% } else { %>
+      <section class="empty-state">
+        <div class="icon">🎮</div>
+        <p>暂无玩家在线</p>
+      </section>
+      <% } %>
+    </main>
 
     <script>
-      const $ = (sel, el = document) => el.querySelector(sel)
-
-      const now = new Date()
-      const y = now.getFullYear()
-      const m = String(now.getMonth() + 1).padStart(2, "0")
-      const d = String(now.getDate()).padStart(2, "0")
-      const h = String(now.getHours()).padStart(2, "0")
-      const i = String(now.getMinutes()).padStart(2, "0")
-      const s = String(now.getSeconds()).padStart(2, "0")
-      $("#now").textContent = `${y}-${m}-${d} ${h}:${i}:${s}`
-
-      const colors = [
-        "#ffa2c4",
-        "#00bcd4",
-        "#03a9f4",
-        "#00a596",
-        "#ff7d73",
-        "#f5bcd0",
-        "#aee8fe",
-        "#66CCFF",
-        "#39C5BB",
-      ]
-      document.querySelectorAll(".player-card").forEach(card => {
-        const color = colors[Math.floor(Math.random() * colors.length)]
-        card.style.backgroundColor = color
-      })
+      const now = new Date();
+      const timeString = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      document.getElementById('current-time').textContent = timeString;
     </script>
   </body>
 </html>
