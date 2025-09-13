@@ -23,7 +23,7 @@ const CONFIG = {
     AVATAR_SIZE: 64,
     RENDER_SCALE: 1.2,
     RECALL_TIME: 15,
-    AVATAR_DELAY_RANGE: { min: 120, max: 500 } // ms
+    AVATAR_DELAY_RANGE: { min: 150, max: 500 } // ms
 };
 
 class McWhitelistManager {
@@ -179,33 +179,46 @@ class McWhitelistManager {
         const filePath = path.join(PATHS.avatarDir, `${uuid}.png`);
 
         // 检查是否需要更新头像
-        if (this.avatarCache[uuid] === this.today && fsSync.existsSync(filePath)) {
-            return true;
+        try {
+            // 使用 fs.promises.access 代替 fsSync.existsSync，避免阻塞
+            await fs.access(filePath);
+            if (this.avatarCache[uuid] === this.today) {
+                return true;
+            }
+        } catch (error) {
+            // 如果文件不存在或缓存过期，继续下载
         }
 
         try {
             // 添加随机延迟以避免请求过于频繁
-            const delay = Math.random() *
-                (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) +
-                CONFIG.AVATAR_DELAY_RANGE.min;
+            const delay = Math.random() * (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) + CONFIG.AVATAR_DELAY_RANGE.min;
             await new Promise(resolve => setTimeout(resolve, index * delay));
 
-            const avatarUrl = `https://crafatar.com/renders/head/${uuid}?size=${CONFIG.AVATAR_SIZE}&overlay`;
-            const response = await fetch(avatarUrl);
+            const avatarUrl = `https://crafatar.com/renders/head/${uuid}?size=${CONFIG.AVATAR_SIZE}&overlay&default=c2a5b759-2dea-4d49-a166-f9a1a4000b40`;
+
+            // 设置 fetch 超时处理
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT); // 设置请求超时
+
+            const response = await fetch(avatarUrl, { signal: controller.signal });
+
+            clearTimeout(timeoutId); // 成功获取后清除超时
 
             if (!response.ok) {
-                throw new Error(`无法获取${uuid}的头像: ${response.status}`);
+                throw new Error(`无法获取 ${uuid} 的头像: ${response.status}`);
             }
 
             const buffer = await response.arrayBuffer();
             await fs.writeFile(filePath, Buffer.from(buffer));
             this.avatarCache[uuid] = this.today;
+
             return true;
         } catch (error) {
             console.error(`下载头像失败 (${uuid}):`, error);
             return false;
         }
     }
+
 
     async downloadBackground() {
         try {
@@ -502,19 +515,24 @@ export class TextMsg extends plugin {
             ]);
 
             const filteredList = avatarResults.filter(p => p !== null);
-            const apiUrl = config.mcwhapi.startsWith('http')
-                ? config.mcwhapi
-                : `http://${config.mcwhapi}`;
-                
-            const tpsRes = await fetch(`${apiUrl}/server/tps`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${config.mcwhkey}`
-                }
-            });
+            let tpsData=-1;
+            try {
+                const apiUrl = config.mcwhapi.startsWith('http')
+                    ? config.mcwhapi
+                    : `http://${config.mcwhapi}`;
 
-           const tpsData= parseFloat(await tpsRes.text()).toFixed(2);
+                const tpsRes = await fetch(`${apiUrl}/server/tps`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${config.mcwhkey}`
+                    }
+                });
+                tpsData = parseFloat(await tpsRes.text()).toFixed(2);
+            }catch (error) {
+                console.error('获取TPS失败:', error);
+                e.reply("获取TPS失败喵~");
+            }
 
             // 保存头像缓存
             await this.manager.saveAvatarCache();
