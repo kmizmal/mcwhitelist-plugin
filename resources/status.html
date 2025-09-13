@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minecraft Server 在线玩家</title>
+    <meta name="color-scheme" content="dark light" />
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card: rgba(255, 255, 255, 0.06);
+        --muted: #93a4c5;
+        --text: #e7edf8;
+        --brand: #7dd3fc; /* 天青 */
+        --brand-2: #a78bfa; /* 紫 */
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+        --chip: rgba(255, 255, 255, 0.08);
+        --shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.25);
+        --radius-xl: 18px;
+        --radius: 12px;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #eef2ff;
+          --card: rgba(255, 255, 255, 0.85);
+          --muted: #5b647a;
+          --text: #0b1220;
+          --chip: rgba(0, 0, 0, 0.06);
+          --shadow: 0 10px 25px rgba(23, 24, 35, 0.08), 0 2px 6px rgba(23, 24, 35, 0.08);
+        }
+        body {
+          background-image:
+            radial-gradient(800px 300px at 15% -20%, #dbeafe, transparent),
+            radial-gradient(800px 300px at 110% 10%, #fae8ff, transparent);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 400px;
+        width: 800px;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI";
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+        background: url("<%= _res_path %>/background.jpg") no-repeat center center;
+        background-size: cover; /* 背景图片自适应容器 */
+        background-color: var(--bg); /* 备用背景色 */
+      }
+
+      .wrap {
+        width: 800px;
+      }
+
+      .header {
+        opacity: 0.85;
+        position: relative;
+        border-radius: var(--radius-xl);
+        background:
+          linear-gradient(135deg, rgba(125, 211, 252, 0.15), rgba(167, 139, 250, 0.12)), var(--card);
+        backdrop-filter: blur(8px);
+        box-shadow: var(--shadow);
+        padding: 22px 22px 16px 22px;
+        overflow: hidden;
+      }
+      .header::after {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        border-radius: inherit;
+        padding: 2px;
+        background: linear-gradient(135deg, #7dd3fc55, #a78bfa55);
+        -webkit-mask:
+          linear-gradient(#000 0 0) content-box,
+          linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+      }
+
+      .row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      .split {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .title {
+        font-weight: 800;
+        font-size: clamp(22px, 3.3vw, 32px);
+        letter-spacing: 0.5px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 999px;
+        background: var(--chip);
+        color: var(--text);
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .chip .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+      .chip.ok {
+        color: var(--ok);
+      }
+      .chip.warn {
+        color: var(--warn);
+      }
+      .chip.bad {
+        color: var(--bad);
+      }
+      .chip.brand {
+        color: var(--brand);
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .grid {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 12px;
+      }
+
+      .card {
+        background: var(--card);
+        backdrop-filter: blur(6px);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        opacity: 0.9;
+        padding: 14px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        /* border: 1px solid rgba(255, 255, 255, 0.08); */
+        transition:
+          transform 0.08s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        flex: 0 0 auto;
+        overflow: hidden;
+        position: relative;
+        background: #0e1729;
+        display: grid;
+        place-items: center;
+      }
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .avatar svg {
+        width: 65%;
+        opacity: 0.9;
+      }
+
+      .info {
+        min-width: 0;
+      }
+      .name {
+        font-weight: 700;
+        font-size: 15px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <div class="split">
+          <div>
+            <div class="title">{{serverName}}</div>
+            <div class="sub">{{server}}</div>
+          </div>
+          <div class="toolbar">
+            <div class="chip brand" title="每秒刻数 (20 为满)">
+              <span class="dot"></span><span>TPS <span>{{tps}}</span></span>
+            </div>
+            <div class="chip ok" id="realChip" title="真人玩家">
+              玩家<span>{{players.length}}</span>
+            </div>
+            <div class="chip warn" id="botChip" title="假人/机器人">
+              🤖 假人 <span> {{arkCount}}</span>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-top: 10px">
+          <div class="sub">当前时间：<span id="now">--:--:--</span></div>
+        </div>
+
+        <div class="grid">
+          <% players.forEach(player => { %>
+          <div class="card">
+            <div class="avatar"><img src="<%= _res_path %>/avatars/<%= player.uuid %>.png" /></div>
+            <div class="info">
+              <div class="name"><%= player.name %></div>
+            </div>
+          </div>
+
+          <% }) %>
+        </div>
+      </header>
+    </div>
+
+    <script>
+      const $ = (sel, el = document) => el.querySelector(sel)
+
+      const now = new Date()
+      const y = now.getFullYear()
+      const m = String(now.getMonth() + 1).padStart(2, "0")
+      const d = String(now.getDate()).padStart(2, "0")
+      const h = String(now.getHours()).padStart(2, "0")
+      const i = String(now.getMinutes()).padStart(2, "0")
+      const s = String(now.getSeconds()).padStart(2, "0")
+      $("#now").textContent = `${y}-${m}-${d} ${h}:${i}:${s}`
+
+      const colors = [
+        "#ffa2c4",
+        "#00bcd4",
+        "#03a9f4",
+        "#00a596",
+        "#ff7d73",
+        "#f5bcd0",
+        "#aee8fe",
+        "#66CCFF",
+        "#39C5BB",
+      ]
+      document.querySelectorAll(".player-card").forEach(card => {
+        const color = colors[Math.floor(Math.random() * colors.length)]
+        card.style.backgroundColor = color
+      })
+    </script>
+  </body>
+</html>

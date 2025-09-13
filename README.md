@@ -12,7 +12,10 @@
 - 通过命令 `#mcwl` 查询自己添加过的白名单
 - 使用远程接口调用 Minecraft 服务器白名单 API
 - 内置简单权限控制（仅限发送命令的 QQ 用户可管理自己的白名单）
+- 支持通过`#mcws` 调用 mcstatus.io 与 crafatar.com 查询服务器状态
 
+
+![mfi1evuh](https://img.zmal.top/20250913/mfi1evuh.73ce16bf.2dp1z90uy3.jpg)
 ---
 
 ## 安装方法
@@ -39,7 +42,7 @@ pnpm install
 ---
 
 ## 配置
-
+> 插件已支持使用锅巴配置
 插件目录下需要有 `config.yaml` 文件，示例：
 
 ```yaml
@@ -70,11 +73,18 @@ mcwhkey: your_secret_token # 鉴权密钥
   ```
   #mcwl
   ```
+
+- 查询服务器状态
+  ```
+  #mcws
+  ```
+
 - 帮助
   ```
   #mcwhelp
   ```
   显示帮助信息
+
 
 ---
 
@@ -95,3 +105,6 @@ mcwhkey: your_secret_token # 鉴权密钥
 - [icqq文档](https://gitee.com/shijinn/Miao-Yunzai-plugin)
 - [锅巴插件](https://github.com/guoba-yunzai/Guoba-Plugin)~~sjlei还没回我，差评~~
 - [fabric](https://fabricmc.net/)
+- [次元api](https://t.alcy.cc/)提供服务器状态背景图
+- [mcstatus](mcstatus.io)提供服务器状态
+- [crafatar](crafatar.com)提供uuid查头像

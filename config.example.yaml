@@ -1,3 +1,5 @@
 mcwhapi: "http://127.0.0.1:6626"
 mcwhkey: "change_me"
 maxbind: 1
+serverName: "mcwhitelist"
+mcserver: "mc1.minamikawashino.uk:14338"

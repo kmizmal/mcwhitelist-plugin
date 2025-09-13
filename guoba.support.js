@@ -86,6 +86,26 @@ export function supportGuoba() {
             addonAfter: '个'
           }
         },
+        {
+          field: 'serverName',
+          label: '服务器名称',
+          bottomHelpMessage: '用于状态查询显示',
+          component: 'Input',
+          required: false,
+          componentProps: {
+            placeholder: '请输入服务器名称'
+          }
+        },
+        {
+          field: 'mcserver',
+          label: '服务器地址',
+          bottomHelpMessage: '用于状态查询显示，格式为 ip:port（默认的25565可省略）',
+          component: 'Input',
+          required: false,
+          componentProps: {
+            placeholder: '例如：mc.example.com:25565'
+          }
+        },
       ],
 
       // 读取配置，用于前端显示

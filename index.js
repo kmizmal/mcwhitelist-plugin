@@ -10,7 +10,28 @@ const __dirname = path.dirname(__filename);
 
 const configPath = path.join(__dirname, "config.yaml");
 const expampleconfigPath = path.join(__dirname, "config.example.yaml");
+const listPath = path.join(__dirname, "list.json");
+const cacheavatars = path.join(__dirname, 'resources/avatars/avatar-cache.json');
+const avatarDir = path.join(__dirname, 'resources/avatars');
+const bgPath = path.join(__dirname, 'resources/background.jpg');
 
+if (!fs.existsSync(avatarDir)) {
+    fs.mkdirSync(avatarDir, { recursive: true });
+}
+let avatarCache = {};
+
+
+if (fs.existsSync(cacheavatars)) {
+    try {
+        avatarCache = JSON.parse(fs.readFileSync(cacheavatars, 'utf-8'));
+    } catch (err) {
+        console.error("解析头像缓存失败，初始化为空对象", err);
+        avatarCache = {};
+    }
+}
+
+
+const today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
 
 
 if (!fs.existsSync(configPath)) {
@@ -23,7 +44,7 @@ if (!fs.existsSync(configPath)) {
     }
 }
 
-const listPath = path.join(__dirname, "list.json");
+
 let list = {};
 if (fs.existsSync(listPath)) {
     try {
@@ -65,13 +86,35 @@ export class TextMsg extends plugin {
                 {
                     reg: '^#?mcwf(\\S+)$',
                     fnc: 'queryuesr'
-                }
+                },
+                {
+                    reg: '^#?mcws',
+                    fnc: 'status'
+                },
 
             ]
         })
 
     }
-
+    async queryList(e) {
+        let user;
+        if (e.at) {
+            const curGroup = e.group || Bot?.pickGroup(e.group_id);
+            const membersMap = await curGroup?.getMemberMap();
+            user = membersMap.get(parseInt(e.at));
+        } else {
+            user = e.sender;
+        }
+        console.log(user);
+        if (!list[user.user_id] || list[user.user_id].length === 0) {
+            e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
+            return true;
+        } else {
+            const players = list[user.user_id].join("\n");
+            e.reply(`你已添加的白名单有:\n${players}`, true);
+            return true;
+        }
+    }
     async run(e) {
         const user_id = e.user_id;
         if (!list[user_id]) list[user_id] = [];
@@ -147,25 +190,7 @@ export class TextMsg extends plugin {
             return false;
         }
     }
-    async queryList(e) {
-        let user;
-        if (e.at) {
-            const curGroup = e.group || Bot?.pickGroup(e.group_id);
-            const membersMap = await curGroup?.getMemberMap();
-            user = membersMap.get(parseInt(e.at));
-        } else {
-            user = e.sender;
-        }
-        console.log(user);
-        if (!list[user.user_id] || list[user.user_id].length === 0) {
-            e.reply("你还没有添加任何白名单喵~", true, { recallMsg: 15 });
-            return true;
-        } else {
-            const players = list[user.user_id].join("\n");
-            e.reply(`你已添加的白名单有:\n${players}`, true);
-            return true;
-        }
-    }
+
     async deletePlayer(e) {
         let user;
         if (e.at) {
@@ -204,12 +229,13 @@ export class TextMsg extends plugin {
 
     async help(e) {
         e.reply(`白名单管理帮助：
-1. 添加白名单: #mcw 玩家名
-2. 查询白名单: #mcwl （可@别人）
-3. 查询玩家绑定情况: #mcwf 玩家名
-4. 删除白名单: #mcw 删 玩家名 （或不写玩家名则删除最后一个）
-5. 查看帮助: #mcwhelp / mcw帮助
-`, true);
+    1. 添加白名单: #mcw 玩家名
+    2. 查询白名单: #mcwl （可@别人）
+    3. 查询玩家绑定情况: #mcwf 玩家名
+    4. 删除白名单: #mcw 删 玩家名 （或不写玩家名则删除最后一个）
+    5. 查看帮助: #mcwhelp / mcw帮助
+    6. 查询服务器状态: #mcws
+    `, true);
 
         return true;
     }
@@ -229,5 +255,92 @@ export class TextMsg extends plugin {
         }
         e.reply(`未找到${player}`)
         return true;
+    }
+
+    async status(e) {
+        const file = fs.readFileSync(configPath, "utf8");
+        const config = YAML.parse(file);
+        const server = config.mcserver;
+        if (server == null || server.trim() === "") {
+            e.reply("请先在配置文件中设置mcserver喵~", true);
+            return true;
+        }
+        const serverName = (typeof config.serverName === 'string' && config.serverName.trim() !== "")
+            ? config.serverName.trim()
+            : "mcwhitelist";
+
+        // console.log(e.runtime.render.toString())
+        const url = `https://api.mcstatus.io/v2/status/java/${server}`;
+
+        try {
+            const response = await fetch(url);
+            const json = await response.json();
+
+            const online = json.online;
+            if (!online) { e.reply("服务器离线喵~", true); return true; }
+            const players = json.players;
+            let arkCount = 0;
+
+
+            const filteredListPromises = players.list.map(async (p, index) => {
+                if (p.uuid === '00000000-0000-0000-0000-000000000000') {
+                    arkCount++;
+                    return null;
+                }
+
+                const filePath = path.join(avatarDir, `${p.uuid}.png`);
+
+                // 检查是否需要更新头像
+                if (avatarCache[p.uuid] !== today || !fs.existsSync(filePath)) {
+                    await new Promise(resolve => setTimeout(resolve, index * 100 * (Math.random() + 0.2)));
+                    const avatarUrl = `https://crafatar.com/renders/head/${p.uuid}?size=64&overlay`;
+                    try {
+                        const res = await fetch(avatarUrl);
+                        if (!res.ok) throw new Error(`无法获取${p.uuid}的头像: ${res.status}`);
+                        const buffer = await res.arrayBuffer();
+                        await fs.promises.writeFile(filePath, Buffer.from(buffer));
+                        avatarCache[p.uuid] = today;
+                    } catch (err) {
+                        console.error("下载头像失败:", err);
+                        return null;
+                    }
+                }
+
+                return { uuid: p.uuid, name: p.name_clean };
+            });
+
+            try {
+                const res = await fetch("https://t.alcy.cc/moe");
+                const buffer = Buffer.from(await res.arrayBuffer());
+                await fs.promises.writeFile(bgPath, buffer);
+            } catch (err) {
+                console.error("下载背景图失败:", err);
+            }
+
+            let filteredList = (await Promise.all(filteredListPromises)).filter(p => p && p.uuid !== '00000000-0000-0000-0000-000000000000');
+            // console.log(filteredList);
+
+            try {
+                fs.writeFileSync(cacheavatars, JSON.stringify(avatarCache, null, 2));
+            } catch (err) {
+                console.error("保存头像缓存失败:", err);
+            }
+
+            // console.log("渲染数据:", {
+            //     players: filteredList,
+            //     arkCount,
+            //     server,
+            //     serverName
+            // });
+
+            return await e.runtime.render('mcwhitelist-plugin', 'status.html', { players: filteredList, arkCount, server, serverName }, { scale: 1.2, e });
+
+        } catch (err) {
+            console.error("获取服务器状态失败:", err);
+            e.reply("获取服务器状态失败", true);
+        }
+
+        return true;
+
     }
 }
