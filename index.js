@@ -1,249 +1,5 @@
 import fetch from 'node-fetch';
-import fs from "fs/promises";
-import fsSync from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import YAML from "yaml";
-
-// 获取当前插件目录
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// 路径配置
-const PATHS = {
-    config: path.join(__dirname, "config.yaml"),
-    exampleConfig: path.join(__dirname, "config.example.yaml"),
-    avatarDir: path.join(__dirname, 'resources/avatars'),
-    background: path.join(__dirname, 'resources/background.jpg')
-};
-
-// 常量配置
-const CONFIG = {
-    REQUEST_TIMEOUT: 10000,
-    AVATAR_SIZE: 64,
-    RENDER_SCALE: 1.2,
-    RECALL_TIME: 15,
-    AVATAR_DELAY_RANGE: { min: 150, max: 500 } // ms
-};
-
-class McWhitelistManager {
-    constructor() {
-        this.avatarCache = {};
-        this.list = {};
-        this.config = null;
-        this.today = new Date().toISOString().slice(0, 10);
-    }
-
-    async initialize() {
-        try {
-            // 初始化配置文件
-            await this.initializeConfig();
-
-            // 加载缓存数据
-            await Promise.all([
-                this.loadAvatarCache(),
-                this.loadPlayerList()
-            ]);
-
-            logger.mark("Ciallo～(∠・ω＜ )⌒★ - McWhitelist插件初始化完成");
-        } catch (error) {
-            console.error("插件初始化失败:", error);
-            throw error;
-        }
-    }
-
-
-    async ensureDirectoryExists(dir) {
-        try {
-            await fs.access(dir);
-        } catch {
-            await fs.mkdir(dir, { recursive: true });
-        }
-    }
-
-    async initializeConfig() {
-        try {
-            await fs.access(PATHS.config);
-        } catch {
-            console.warn("配置文件不存在，正在创建...");
-            try {
-                await fs.copyFile(PATHS.exampleConfig, PATHS.config);
-                console.info("成功创建新的配置文件:", PATHS.config);
-            } catch (err) {
-                console.error("创建配置文件失败:", err);
-                throw err;
-            }
-        }
-    }
-
-    async loadConfig() {
-        try {
-            const configFile = await fs.readFile(PATHS.config, "utf8");
-            this.config = YAML.parse(configFile);
-            return this.config;
-        } catch (error) {
-            console.error("加载配置文件失败:", error);
-            throw error;
-        }
-    }
-
-    async loadAvatarCache() {
-        try {
-            const cacheData = await redis.get('avatarCache');
-            if (cacheData) {
-                this.avatarCache = JSON.parse(cacheData);
-            } else {
-                this.avatarCache = {};
-            }
-        } catch (error) {
-            console.error("加载头像缓存失败:", error);
-        }
-    }
-
-
-    async loadPlayerList() {
-        try {
-            const content = await redis.get('playerList');
-            if (content) {
-                this.list = JSON.parse(content);
-            } else {
-                this.list = {};
-            }
-        } catch (error) {
-            console.error("加载玩家列表失败:", error);
-            this.list = {};
-        }
-    }
-
-
-    async savePlayerList() {
-        try {
-            await redis.set('playerList', JSON.stringify(this.list));
-        } catch (error) {
-            console.error("保存玩家列表失败:", error);
-        }
-    }
-
-
-    async saveAvatarCache() {
-        try {
-            await redis.set('avatarCache', JSON.stringify(this.avatarCache));
-        } catch (error) {
-            console.error("保存头像缓存失败:", error);
-        }
-    }
-
-
-    async makeApiRequest(player, action) {
-        try {
-            const config = await this.loadConfig();
-            const apiUrl = config.mcwhapi.startsWith('http')
-                ? config.mcwhapi
-                : `http://${config.mcwhapi}`;
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-
-            const response = await fetch(`${apiUrl}/whitelist/${action}?player=${player}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${config.mcwhkey}`
-                },
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (response.status === 401) {
-                console.warn('鉴权密钥错误');
-                return false;
-            }
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            return await response.text();
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.error('API请求超时');
-            } else {
-                console.error('API请求出错:', error);
-            }
-            return false;
-        }
-    }
-
-    async downloadAvatar(uuid, index = 0) {
-        const filePath = path.join(PATHS.avatarDir, `${uuid}.png`);
-
-        // 检查是否需要更新头像
-        try {
-            // 使用 fs.promises.access 代替 fsSync.existsSync，避免阻塞
-            await fs.access(filePath);
-            if (this.avatarCache[uuid] === this.today) {
-                return true;
-            }
-        } catch (error) {
-            // 如果文件不存在或缓存过期，继续下载
-        }
-
-        try {
-            // 添加随机延迟以避免请求过于频繁
-            const delay = Math.random() * (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) + CONFIG.AVATAR_DELAY_RANGE.min;
-            await new Promise(resolve => setTimeout(resolve, index * delay));
-
-            const avatarUrl = `https://crafatar.com/renders/head/${uuid}?size=${CONFIG.AVATAR_SIZE}&overlay&default=c2a5b759-2dea-4d49-a166-f9a1a4000b40`;
-
-            // 设置 fetch 超时处理
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT); // 设置请求超时
-
-            const response = await fetch(avatarUrl, { signal: controller.signal });
-
-            clearTimeout(timeoutId); // 成功获取后清除超时
-
-            if (!response.ok) {
-                throw new Error(`无法获取 ${uuid} 的头像: ${response.status}`);
-            }
-
-            const buffer = await response.arrayBuffer();
-            await fs.writeFile(filePath, Buffer.from(buffer));
-            this.avatarCache[uuid] = this.today;
-
-            return true;
-        } catch (error) {
-            console.error(`下载头像失败 (${uuid}):`, error);
-            return false;
-        }
-    }
-
-
-    async downloadBackground() {
-        try {
-            const response = await fetch("https://t.alcy.cc/moe");
-            if (response.ok) {
-                const buffer = Buffer.from(await response.arrayBuffer());
-                await fs.writeFile(PATHS.background, buffer);
-            }
-        } catch (error) {
-            console.error("下载背景图失败:", error);
-        }
-    }
-
-    getUserFromMessage(e) {
-        if (e.at) {
-            const curGroup = e.group || Bot?.pickGroup(e.group_id);
-            return curGroup?.getMemberMap()?.then(map => map.get(parseInt(e.at)));
-        }
-        return Promise.resolve(e.sender);
-    }
-
-    createErrorMessage(message, recallTime = CONFIG.RECALL_TIME) {
-        return { message, recall: true, recallMsg: recallTime };
-    }
-}
+import {CONFIG,McWhitelistManager} from "./McWhitelistManager.js";
 
 export class TextMsg extends plugin {
     constructor() {
@@ -373,7 +129,6 @@ export class TextMsg extends plugin {
         await this.ensureInitialized();
 
         try {
-            // 获取用户信息
             const user = await this.manager.getUserFromMessage(e);
             const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/); // 正则匹配玩家名
             const player = match ? match[1]?.trim() : null;
@@ -403,7 +158,6 @@ export class TextMsg extends plugin {
             this.manager.list[user.user_id].splice(index, 1); // 删除指定玩家
             await this.manager.savePlayerList(); // 保存更新后的白名单
 
-            // 请求 API 删除服务器中的该玩家
             try {
                 const result = await this.manager.makeApiRequest(player, "remove");
                 if (result === false) {
@@ -411,7 +165,6 @@ export class TextMsg extends plugin {
                     return true;
                 }
 
-                // 解析 API 返回的删除成功信息
                 const match = result.match(/Player\s+(\S+)\s+removed/i);
                 const actualPlayer = match ? match[1] : player;
 
@@ -491,18 +244,26 @@ export class TextMsg extends plugin {
                 e.reply("服务器离线喵~", true);
                 return true;
             }
-
-            const players = json.players;
+            const players = json.players.list;
             let arkCount = 0;
+            // console.log(players);
 
             // 并发下载头像
-            const avatarPromises = players.list.map(async (player, index) => {
+            const avatarPromises = players.map(async (player, index) => {
                 if (player.uuid === '00000000-0000-0000-0000-000000000000') {
                     arkCount++;
                     return null;
                 }
+                try {
+                    if (this.avatarCache[player.uuid] === this.today) {
+                        return null;
+                    }
+                } catch {
+                    //没必要处理
+                }
 
-                await this.manager.downloadAvatar(player.uuid, index);
+                await this.manager.downloadAvatar(player.uuid, index)
+
                 return { uuid: player.uuid, name: player.name_clean };
             });
 
@@ -515,7 +276,7 @@ export class TextMsg extends plugin {
             ]);
 
             const filteredList = avatarResults.filter(p => p !== null);
-            let tpsData=-1;
+            let tpsData = -1;
             try {
                 const apiUrl = config.mcwhapi.startsWith('http')
                     ? config.mcwhapi
@@ -529,7 +290,7 @@ export class TextMsg extends plugin {
                     }
                 });
                 tpsData = parseFloat(await tpsRes.text()).toFixed(2);
-            }catch (error) {
+            } catch (error) {
                 console.error('获取TPS失败:', error);
                 e.reply("获取TPS失败喵~");
             }

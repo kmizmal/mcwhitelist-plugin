@@ -2,6 +2,7 @@ import fs from "fs"
 import path from "path"
 import { fileURLToPath } from "url"
 import YAML from "yaml"
+import {McWhitelistManager} from './McWhitelistManager.js';
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -18,10 +19,6 @@ function loadConfig() {
   return {}
 }
 
-// 工具函数：写配置
-function saveConfig(data) {
-  fs.writeFileSync(configPath, YAML.stringify(data), "utf8")
-}
 let config = loadConfig();
 
 // 支持锅巴
@@ -124,6 +121,7 @@ export function supportGuoba() {
 
         // 写回文件
         fs.writeFileSync(configPath, YAML.stringify(config), 'utf8')
+        McWhitelistManager.config = config
 
         return Result.ok({}, '配置已保存~')
       }

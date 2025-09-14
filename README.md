@@ -21,7 +21,7 @@
 ## 安装方法
 
 ### mc mod
-> 理论上支持全部版本，但是目前只在1.21.1和1.21.8通过测试
+> 理论上支持全部版本，但是目前只在1.21.1,1.21.7,1.21.8通过测试
 [github](https://github.com/kmizmal/whitelistapimod)  
 modrinth审核还没过
 
@@ -42,13 +42,9 @@ pnpm install
 ---
 
 ## 配置
-> 插件已支持使用锅巴配置
-插件目录下需要有 `config.yaml` 文件，示例：
+> 推荐使用锅巴配置
 
-```yaml
-mcwhapi: http://127.0.0.1:8080 # 你的白名单 API 地址
-mcwhkey: your_secret_token # 鉴权密钥
-```
+参考目录下的`config.example.yaml`
 
 ---
 
@@ -60,15 +56,13 @@ mcwhkey: your_secret_token # 鉴权密钥
   #mcw 玩家名
   ```
 
-  机器人会调用接口并返回是否添加成功。
 
 - 删除白名单
   ```
   #mcw 删 玩家名
   ```
-  还没写完，只能删插件记录，暂时不会影响服务器
 
-- 查询自己添加过的白名单
+- 查询添加过的白名单(at可以查询他人)
 
   ```
   #mcwl
