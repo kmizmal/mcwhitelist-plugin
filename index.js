@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import {CONFIG,McWhitelistManager} from "./McWhitelistManager.js";
+import { CONFIG, McWhitelistManager } from "./McWhitelistManager.js";
 
 export class TextMsg extends plugin {
     constructor() {
@@ -12,6 +12,10 @@ export class TextMsg extends plugin {
                 {
                     reg: '^#?mcwl',
                     fnc: 'queryList'
+                },
+                {
+                    reg: '^#?mcwp',
+                    fnc: 'queryplay'
                 },
                 {
                     reg: '^#?mcw\\s*删\\s*(\\S+)?$',
@@ -247,7 +251,7 @@ export class TextMsg extends plugin {
             const players = json.players.list;
             let arkCount = 0;
             // console.log(players);
-
+            const today = new Date().toISOString().slice(0, 10);
             // 并发下载头像
             const avatarPromises = players.map(async (player, index) => {
                 if (player.uuid === '00000000-0000-0000-0000-000000000000') {
@@ -255,7 +259,7 @@ export class TextMsg extends plugin {
                     return null;
                 }
                 try {
-                    if (this.avatarCache[player.uuid] === this.today) {
+                    if (McWhitelistManager.avatarCache[player.uuid] === today) {
                         return null;
                     }
                 } catch {
@@ -312,4 +316,133 @@ export class TextMsg extends plugin {
             return true;
         }
     }
+    async queryplay(e) {
+        await this.ensureInitialized();
+
+        const user = await this.manager.getUserFromMessage(e);
+        const userList = this.manager.list[user.user_id] || [];
+        // console.log(userList);
+        if (userList.length === 0) {
+            e.reply("你还没有绑定角色喵~", true, { recallMsg: CONFIG.RECALL_TIME });
+            return true;
+        }
+        // console.log(userList[0]);
+
+        const player = userList ? userList[0].trim() : null;
+
+        if (!player) {
+            e.reply("请检查输入喵~", true, { recallMsg: CONFIG.RECALL_TIME });
+            return true;
+        }
+
+        try {
+            const config = await this.manager.loadConfig();
+            const apiUrl = config.mcwhapi.startsWith('http')
+                ? config.mcwhapi
+                : `http://${config.mcwhapi}`;
+
+            const StatsRes = await fetch(`${apiUrl}/server/playStats/?player=${player}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${config.mcwhkey}`
+                }
+            });
+            // console.log(await StatsRes.text()); 
+            const playStats = await StatsRes.json();
+            // console.log(playStats);
+            const uuid = playStats.uuid;
+            const custom = playStats.custom;
+            const playtime = await this.ticksToTime(custom['minecraft:play_time'])
+            const sleep = custom['minecraft:sleep_in_bed'] ?? 0
+
+            const fly = custom['minecraft:fly_one_cm']/100
+            const walk = custom['minecraft:walk_one_cm']/100
+
+            const fish = custom['minecraft:fish_caught'] ?? 0;
+            const traded = custom['minecraft:traded_with_villager'] ?? 0;
+
+            const deaths = custom['minecraft:deaths'] ?? 0
+            const killed = playStats.killed ?? 0
+            const totalKills = this.sumObjectValues(killed);
+
+            const mined = playStats.mined
+            const totalMineds = this.sumObjectValues(mined);
+
+            const debris = (playStats.mined["minecraft:ancient_debris"] ?? 0).toFixed(0);
+            const diamondOre = playStats.mined["minecraft:diamond_ore"] ?? 0;
+            const deepslateDiamondOre = playStats.mined["minecraft:deepslate_diamond_ore"] ?? 0;
+            const diamond = (diamondOre + deepslateDiamondOre).toFixed(0);
+            const message = [
+                `UUID: ${uuid}`,
+                `总在线时长: ${playtime}`,
+                `死亡次数: ${deaths}`,
+                `总击杀数: ${totalKills}`,
+                `总挖掘方块数: ${totalMineds}`,
+                `钻石矿石: ${diamond}个`,
+                `远古残骸: ${debris}个`,
+                `钓鱼数: ${fish}次`,
+                `与村民交易数: ${traded}次`,
+                `飞行距离: ${fly.toLocaleString()}格`,
+                `行走距离: ${walk.toLocaleString()}格`,
+                `睡觉次数: ${sleep}次`
+            ].join('\n');
+
+            e.reply(message, true);
+            return true;
+        } catch (error) {
+            console.error('获取统计信息失败:', error);
+            e.reply("获取统计信息失败喵~");
+        }
+
+    }
+    async ticksToTime(ticks) {
+        const totalSeconds = ticks / 20;
+        const timeUnits = [
+            { unit: '年', value: 365 * 24 * 60 * 60 },
+            { unit: '个月', value: 30 * 24 * 60 * 60 },
+            { unit: '天', value: 24 * 60 * 60 },
+            { unit: '小时', value: 60 * 60 },
+            { unit: '分', value: 60 },
+            { unit: '秒', value: 1 }
+        ];
+
+        let remaining = totalSeconds;
+        const result = [];
+
+        for (const { unit, value } of timeUnits) {
+            if (remaining >= value) {
+                const count = Math.floor(remaining / value);
+                remaining %= value;
+
+                // 只显示非零的时间单位
+                if (count > 0) {
+                    result.push(`${count}${unit}`);
+
+                    // 最多显示2个时间单位（如：1天3小时，而不是1天3小时25分）
+                    if (result.length >= 2) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (result.length === 0 && totalSeconds > 0) {
+            return '1秒';
+        }
+
+        return result.join('') || '0秒';
+    }
+    sumObjectValues(obj) {
+        if (!obj || typeof obj !== 'object') return 0;
+
+        let sum = 0;
+        for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                sum += obj[key];
+            }
+        }
+        return sum;
+    }
+
 }

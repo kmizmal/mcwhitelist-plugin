@@ -2,7 +2,6 @@ import fs from "fs/promises";
 import YAML from "yaml";
 import path from "path";
 import { fileURLToPath } from "url";
-// 获取当前插件目录
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,7 +23,6 @@ export class McWhitelistManager {
         this.avatarCache = {};
         this.list = {};
         this.config = null;
-        this.today = new Date().toISOString().slice(0, 10);
     }
 
     async initialize() {
@@ -67,7 +65,7 @@ export class McWhitelistManager {
     }
 
     async loadConfig() {
-        if(this.config) {
+        if (this.config) {
             return this.config;
         }
         try {
@@ -172,6 +170,7 @@ export class McWhitelistManager {
         const filePath = path.join(PATHS.avatarDir, `${uuid}.png`);
 
         try {
+            const today = new Date().toISOString().slice(0, 10);
             const delay = Math.random() * (CONFIG.AVATAR_DELAY_RANGE.max - CONFIG.AVATAR_DELAY_RANGE.min) + CONFIG.AVATAR_DELAY_RANGE.min;
             await new Promise(resolve => setTimeout(resolve, index * delay));
 
@@ -188,7 +187,7 @@ export class McWhitelistManager {
 
             const buffer = await response.arrayBuffer();
             await fs.writeFile(filePath, Buffer.from(buffer));
-            this.avatarCache[uuid] = this.today;  // 更新缓存
+            this.avatarCache[uuid] = today;  // 更新缓存
 
             return true;
         } catch (error) {
@@ -218,7 +217,4 @@ export class McWhitelistManager {
         return Promise.resolve(e.sender);
     }
 
-    createErrorMessage(message, recallTime = CONFIG.RECALL_TIME) {
-        return { message, recall: true, recallMsg: recallTime };
-    }
 }
