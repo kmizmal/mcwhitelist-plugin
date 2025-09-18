@@ -105,5 +105,5 @@ pnpm install
 - [锅巴插件](https://github.com/guoba-yunzai/Guoba-Plugin)~~sjlei还没回我，差评~~
 - [fabric](https://fabricmc.net/)
 - [次元api](https://t.alcy.cc/)提供服务器状态背景图
-- [mcstatus](mcstatus.io)提供服务器状态
-- [crafatar](crafatar.com)提供uuid查头像
+- [mcstatus](https://mcstatus.io)提供服务器状态
+- [crafatar](https://crafatar.com/)提供uuid查头像

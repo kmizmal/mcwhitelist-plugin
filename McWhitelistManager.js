@@ -9,6 +9,7 @@ const PATHS = {
     config: path.join(__dirname, "config.yaml"),
     exampleConfig: path.join(__dirname, "config.example.yaml"),
     avatarDir: path.join(__dirname, 'resources/avatars'),
+    skinDir: path.join(__dirname, 'resources/skins'),
     background: path.join(__dirname, 'resources/background.jpg')
 };
 export const CONFIG = {
@@ -21,6 +22,7 @@ export const CONFIG = {
 export class McWhitelistManager {
     constructor() {
         this.avatarCache = {};
+        this.skinCache = {};
         this.list = {};
         this.config = null;
     }
@@ -33,12 +35,21 @@ export class McWhitelistManager {
             // 加载缓存数据
             await Promise.all([
                 this.loadAvatarCache(),
-                this.loadPlayerList()
+                this.loadPlayerList(),
+                this.loadSkinCache()
             ]);
             try {
+                // 检查目录是否存在
                 await fs.access(PATHS.avatarDir);
-            } catch {
-                await fs.mkdir(PATHS.avatarDir, { recursive: true });
+                await fs.access(PATHS.skinDir);
+            } catch (error) {
+                // 如果目录不存在或有其他错误，创建目录
+                try {
+                    await fs.mkdir(PATHS.avatarDir, { recursive: true });
+                    await fs.mkdir(PATHS.skinDir, { recursive: true });
+                } catch (mkdirError) {
+                    console.error('目录创建失败:', mkdirError);
+                }
             }
 
             logger.mark("Ciallo～(∠・ω＜ )⌒★ - McWhitelist插件初始化完成");
@@ -79,71 +90,85 @@ export class McWhitelistManager {
     }
 
     async loadAvatarCache() {
-    try {
-        // 检查是否存在旧键 'avatarCache'
-        let cacheData = await redis.get('avatarCache');
-        if (cacheData) {
-            // 如果旧键存在，迁移到新键 'mcw:avatarCache'
-            await redis.set('mcw:avatarCache', cacheData);  // 设置到新键
-            await redis.del('avatarCache');  // 删除旧键（可选）
-        }
+        try {
+            // let cacheData = await redis.get('avatarCache');
+            // if (cacheData) {
+            //     // 如果旧键存在，迁移到新键 'mcw:avatarCache'
+            //     await redis.set('mcw:avatarCache', cacheData);  // 设置到新键
+            //     await redis.del('avatarCache');  // 删除旧键（可选）
+            // }
 
-        // 现在尝试从新键 'mcw:avatarCache' 获取数据
-        cacheData = await redis.get('mcw:avatarCache');
-        
-        if (cacheData) {
-            this.avatarCache = JSON.parse(cacheData);
-        } else {
-            this.avatarCache = {};
+            let cacheData = await redis.get('mcw:avatarCache');
+
+            if (cacheData) {
+                this.avatarCache = JSON.parse(cacheData);
+            } else {
+                this.avatarCache = {};
+            }
+        } catch (error) {
+            console.error("加载头像缓存失败:", error);
         }
-    } catch (error) {
-        console.error("加载头像缓存失败:", error);
     }
-}
 
-async loadPlayerList() {
-    try {
-        // 检查是否存在旧键 'playerList'
-        let content = await redis.get('playerList');
-        if (content) {
-            // 如果旧键存在，迁移到新键 'mcw:playerList'
-            await redis.set('mcw:playerList', content);  // 设置到新键
-            await redis.del('playerList');  // 删除旧键（可选）
-        }
+    async loadPlayerList() {
+        try {
+            // let content = await redis.get('playerList');
+            // if (content) {
+            //     // 如果旧键存在，迁移到新键 'mcw:playerList'
+            //     await redis.set('mcw:playerList', content);  // 设置到新键
+            //     await redis.del('playerList');  // 删除旧键（可选）
+            // }
 
-        // 现在尝试从新键 'mcw:playerList' 获取数据
-        content = await redis.get('mcw:playerList');
-        
-        if (content) {
-            this.list = JSON.parse(content);
-        } else {
+            let content = await redis.get('mcw:playerList');
+
+            if (content) {
+                this.list = JSON.parse(content);
+            } else {
+                this.list = {};
+            }
+        } catch (error) {
+            console.error("加载玩家列表失败:", error);
             this.list = {};
         }
-    } catch (error) {
-        console.error("加载玩家列表失败:", error);
-        this.list = {};
     }
-}
-
-async savePlayerList() {
-    try {
-        // 将数据保存到新键 'mcw:playerList'
-        await redis.set('mcw:playerList', JSON.stringify(this.list));
-    } catch (error) {
-        console.error("保存玩家列表失败:", error);
+    async loadSkinCache() {
+        try {
+            let cacheData = await redis.get('mcw:skinCache');
+            if (cacheData) {
+                this.skinCache = JSON.parse(cacheData);
+            } else {
+                this.skinCache = {};
+            }
+        } catch (error) {
+            console.error("加载皮肤缓存失败:", error);
+            this.skinCache = {};
+        }
     }
-}
 
-async saveAvatarCache() {
-    try {
-        // 将数据保存到新键 'mcw:avatarCache'
-        await redis.set('mcw:avatarCache', JSON.stringify(this.avatarCache));
-    } catch (error) {
-        console.error("保存头像缓存失败:", error);
+
+
+    async savePlayerList() {
+        try {
+            await redis.set('mcw:playerList', JSON.stringify(this.list));
+        } catch (error) {
+            console.error("保存玩家列表失败:", error);
+        }
     }
-}
 
-
+    async saveAvatarCache() {
+        try {
+            await redis.set('mcw:avatarCache', JSON.stringify(this.avatarCache));
+        } catch (error) {
+            console.error("保存头像缓存失败:", error);
+        }
+    }
+    async saveSkinCache() {
+        try {
+            await redis.set('mcw:skinCache', JSON.stringify(this.skinCache));
+        } catch (error) {
+            console.error("保存皮肤缓存失败:", error);
+        }
+    }
 
     async makeApiRequest(player, action) {
         try {
@@ -216,6 +241,27 @@ async saveAvatarCache() {
         }
     }
 
+    async downloadSkin(uuid) {
+        const filePath = path.join(PATHS.skinDir, `${uuid}.png`);
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const skinUrl = `https://crafatar.com/renders/body/${uuid}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+            const response = await fetch(skinUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!response.ok) {
+                throw new Error(`无法获取 ${uuid} 的皮肤: ${response.status}`);
+            }
+            const buffer = await response.arrayBuffer();
+            await fs.writeFile(filePath, Buffer.from(buffer));
+            this.skinCache[uuid] = today;  // 更新缓存
+            return true;
+        } catch (error) {
+            console.error(`下载皮肤失败 (${uuid}):`, error);
+            return false;
+        }
+    }
 
     async downloadBackground() {
         try {

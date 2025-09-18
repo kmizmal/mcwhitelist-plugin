@@ -356,8 +356,8 @@ export class TextMsg extends plugin {
             const playtime = await this.ticksToTime(custom['minecraft:play_time'])
             const sleep = custom['minecraft:sleep_in_bed'] ?? 0
 
-            const fly = custom['minecraft:fly_one_cm']/100
-            const walk = custom['minecraft:walk_one_cm']/100
+            const fly = custom['minecraft:fly_one_cm'] / 100
+            const walk = custom['minecraft:walk_one_cm'] / 100
 
             const fish = custom['minecraft:fish_caught'] ?? 0;
             const traded = custom['minecraft:traded_with_villager'] ?? 0;
@@ -373,22 +373,47 @@ export class TextMsg extends plugin {
             const diamondOre = playStats.mined["minecraft:diamond_ore"] ?? 0;
             const deepslateDiamondOre = playStats.mined["minecraft:deepslate_diamond_ore"] ?? 0;
             const diamond = (diamondOre + deepslateDiamondOre).toFixed(0);
-            const message = [
-                `UUID: ${uuid}`,
-                `总在线时长: ${playtime}`,
-                `死亡次数: ${deaths}`,
-                `总击杀数: ${totalKills}`,
-                `总挖掘方块数: ${totalMineds}`,
-                `钻石矿石: ${diamond}个`,
-                `远古残骸: ${debris}个`,
-                `钓鱼数: ${fish}次`,
-                `与村民交易数: ${traded}次`,
-                `飞行距离: ${fly.toLocaleString()}格`,
-                `行走距离: ${walk.toLocaleString()}格`,
-                `睡觉次数: ${sleep}次`
-            ].join('\n');
+            // const message = [
+            //     `UUID: ${uuid}`,
+            //     `总在线时长: ${playtime}`,
+            //     `死亡次数: ${deaths}`,
+            //     `总击杀数: ${totalKills}`,
+            //     `总挖掘方块数: ${totalMineds}`,
+            //     `钻石矿石: ${diamond}个`,
+            //     `远古残骸: ${debris}个`,
+            //     `钓鱼数: ${fish}次`,
+            //     `与村民交易数: ${traded}次`,
+            //     `飞行距离: ${fly.toLocaleString()}格`,
+            //     `行走距离: ${walk.toLocaleString()}格`,
+            //     `睡觉次数: ${sleep}次`
+            // ].join('\n');
 
-            e.reply(message, true);
+            // e.reply(message, true);
+            const today = new Date().toISOString().slice(0, 10);
+            try {
+                if (McWhitelistManager.skinCache[uuid] != today) {
+                    await this.manager.downloadSkin(uuid)
+                }
+            } catch (error) {
+                await this.manager.downloadSkin(uuid)
+            }
+             await this.manager.downloadBackground();
+             await this.manager.saveSkinCache()
+
+
+            return await e.runtime.render('mcwhitelist-plugin', 'play.html', {
+                uuid,
+                playtime,
+                deaths,
+                totalKills,
+                totalMineds,
+                diamond,
+                debris,
+                fish,
+                traded,
+                fly: fly.toFixed(0),
+                walk: walk.toFixed(0),
+                sleep}, { scale: CONFIG.RENDER_SCALE, e });
             return true;
         } catch (error) {
             console.error('获取统计信息失败:', error);
