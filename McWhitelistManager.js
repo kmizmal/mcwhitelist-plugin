@@ -79,50 +79,70 @@ export class McWhitelistManager {
     }
 
     async loadAvatarCache() {
-        try {
-            const cacheData = await redis.get('avatarCache');
-            if (cacheData) {
-                this.avatarCache = JSON.parse(cacheData);
-            } else {
-                this.avatarCache = {};
-            }
-        } catch (error) {
-            console.error("加载头像缓存失败:", error);
+    try {
+        // 检查是否存在旧键 'avatarCache'
+        let cacheData = await redis.get('avatarCache');
+        if (cacheData) {
+            // 如果旧键存在，迁移到新键 'mcw:avatarCache'
+            await redis.set('mcw:avatarCache', cacheData);  // 设置到新键
+            await redis.del('avatarCache');  // 删除旧键（可选）
         }
+
+        // 现在尝试从新键 'mcw:avatarCache' 获取数据
+        cacheData = await redis.get('mcw:avatarCache');
+        
+        if (cacheData) {
+            this.avatarCache = JSON.parse(cacheData);
+        } else {
+            this.avatarCache = {};
+        }
+    } catch (error) {
+        console.error("加载头像缓存失败:", error);
     }
+}
 
+async loadPlayerList() {
+    try {
+        // 检查是否存在旧键 'playerList'
+        let content = await redis.get('playerList');
+        if (content) {
+            // 如果旧键存在，迁移到新键 'mcw:playerList'
+            await redis.set('mcw:playerList', content);  // 设置到新键
+            await redis.del('playerList');  // 删除旧键（可选）
+        }
 
-    async loadPlayerList() {
-        try {
-            const content = await redis.get('playerList');
-            if (content) {
-                this.list = JSON.parse(content);
-            } else {
-                this.list = {};
-            }
-        } catch (error) {
-            console.error("加载玩家列表失败:", error);
+        // 现在尝试从新键 'mcw:playerList' 获取数据
+        content = await redis.get('mcw:playerList');
+        
+        if (content) {
+            this.list = JSON.parse(content);
+        } else {
             this.list = {};
         }
+    } catch (error) {
+        console.error("加载玩家列表失败:", error);
+        this.list = {};
     }
+}
 
-
-    async savePlayerList() {
-        try {
-            await redis.set('playerList', JSON.stringify(this.list));
-        } catch (error) {
-            console.error("保存玩家列表失败:", error);
-        }
+async savePlayerList() {
+    try {
+        // 将数据保存到新键 'mcw:playerList'
+        await redis.set('mcw:playerList', JSON.stringify(this.list));
+    } catch (error) {
+        console.error("保存玩家列表失败:", error);
     }
+}
 
-
-    async saveAvatarCache() {
-        try {
-            await redis.set('avatarCache', JSON.stringify(this.avatarCache));
-        } catch (error) {
-            console.error("保存头像缓存失败:", error);
-        }
+async saveAvatarCache() {
+    try {
+        // 将数据保存到新键 'mcw:avatarCache'
+        await redis.set('mcw:avatarCache', JSON.stringify(this.avatarCache));
+    } catch (error) {
+        console.error("保存头像缓存失败:", error);
     }
+}
+
 
 
     async makeApiRequest(player, action) {

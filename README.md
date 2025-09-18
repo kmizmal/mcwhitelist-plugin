@@ -8,14 +8,14 @@
 ## 功能特性
 
 - 支持通过命令 `#mcl 玩家名` 添加白名单
-- 自动保存用户已添加的白名单列表 (`list.json`)
+- 自动保存用户已添加的白名单列表 (使用Redis)
 - 通过命令 `#mcwl` 查询自己添加过的白名单
 - 使用远程接口调用 Minecraft 服务器白名单 API
 - 内置简单权限控制（仅限发送命令的 QQ 用户可管理自己的白名单）
 - 支持通过`#mcws` 调用 mcstatus.io 与 crafatar.com 查询服务器状态
 
 
-![2410e4b1edd0731f97e2f3d12c250559](https://img.zmal.top/20250913/2410e4b1edd0731f97e2f3d12c250559.7snkhqguik.jpg)
+![](https://img.zmal.top/20250913/2410e4b1edd0731f97e2f3d12c250559.7snkhqguik.jpg)
 ---
 
 ## 安装方法
@@ -71,6 +71,11 @@ pnpm install
 - 查询服务器状态
   ```
   #mcws
+  ```
+
+- 查询玩家统计信息(at可以查询他人),默认获取第一个绑定的角色
+  ```
+  #mcwp
   ```
 
 - 帮助
