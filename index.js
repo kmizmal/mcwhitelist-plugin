@@ -79,28 +79,22 @@ export class TextMsg extends plugin {
         }
 
         const match = e.msg.match(/^#?mcw(?!l)\s+(\S+)$/);
-        if (!match) {
-            e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: CONFIG.RECALL_TIME });
-            return true;
-        }
+        const player = match ? match[1].trim() : null;
 
-        const player = match[1].trim();
         if (!player) {
             e.reply("人家猜不到小笨蛋的名字喵~", true, { recallMsg: CONFIG.RECALL_TIME });
             return true;
         }
 
-        // 检查是否已在白名单
         if (this.manager.list[user_id].includes(player)) {
-            e.reply(`${player}已经在白名单了喵~`, true, { recallMsg: CONFIG.RECALL_TIME });
+            e.reply(`${player} 已在白名单中喵~`, true, { recallMsg: CONFIG.RECALL_TIME });
             return true;
         }
 
-        // 检查数量限制
         const config = await this.manager.loadConfig();
         if (this.manager.list[user_id].length >= config.maxbind) {
             e.reply(
-                `你添加的白名单数已达上限喵~,也许你可以通过[#mcw删 <用户名>]的方式删掉一些。(可以通过[#mcwl]查询已绑定的情况)`,
+                `你已达到白名单上限，请删除一些不需要的玩家喵~`,
                 true
             );
             return true;
@@ -113,14 +107,10 @@ export class TextMsg extends plugin {
                 return true;
             }
 
-            const match = result.match(/Player\s+(\S+)\s+added/i);
-            const actualPlayer = match ? match[1] : player;
-
             this.manager.list[user_id].push(player);
             await this.manager.savePlayerList();
-
-            e.reply(`${actualPlayer}添加白名单了喵，若无效请联系管理员~`, true, { recallMsg: CONFIG.RECALL_TIME });
-            e.reply(`已添加${this.manager.list[user_id].length}个白名单`, true);
+            e.reply(`${player} 已添加到白名单喵~`, true);
+            e.reply(`你已添加 ${this.manager.list[user_id].length} 个白名单`, true);
             return true;
         } catch (error) {
             console.error("添加玩家失败:", error);
@@ -373,22 +363,7 @@ export class TextMsg extends plugin {
             const diamondOre = playStats.mined["minecraft:diamond_ore"] ?? 0;
             const deepslateDiamondOre = playStats.mined["minecraft:deepslate_diamond_ore"] ?? 0;
             const diamond = (diamondOre + deepslateDiamondOre).toFixed(0);
-            // const message = [
-            //     `UUID: ${uuid}`,
-            //     `总在线时长: ${playtime}`,
-            //     `死亡次数: ${deaths}`,
-            //     `总击杀数: ${totalKills}`,
-            //     `总挖掘方块数: ${totalMineds}`,
-            //     `钻石矿石: ${diamond}个`,
-            //     `远古残骸: ${debris}个`,
-            //     `钓鱼数: ${fish}次`,
-            //     `与村民交易数: ${traded}次`,
-            //     `飞行距离: ${fly.toLocaleString()}格`,
-            //     `行走距离: ${walk.toLocaleString()}格`,
-            //     `睡觉次数: ${sleep}次`
-            // ].join('\n');
 
-            // e.reply(message, true);
             const today = new Date().toISOString().slice(0, 10);
             try {
                 if (McWhitelistManager.skinCache[uuid] != today) {
@@ -397,8 +372,8 @@ export class TextMsg extends plugin {
             } catch (error) {
                 await this.manager.downloadSkin(uuid)
             }
-             await this.manager.downloadBackground();
-             await this.manager.saveSkinCache()
+            await this.manager.downloadBackground();
+            await this.manager.saveSkinCache()
 
 
             return await e.runtime.render('mcwhitelist-plugin', 'play.html', {
@@ -413,7 +388,8 @@ export class TextMsg extends plugin {
                 traded,
                 fly: fly.toFixed(0),
                 walk: walk.toFixed(0),
-                sleep}, { scale: CONFIG.RENDER_SCALE, e });
+                sleep
+            }, { scale: CONFIG.RENDER_SCALE, e });
             return true;
         } catch (error) {
             console.error('获取统计信息失败:', error);

@@ -265,7 +265,7 @@ export class McWhitelistManager {
 
     async downloadBackground() {
         try {
-            const response = await fetch("https://t.alcy.cc/moe");
+            const response = await fetch("https://t.alcy.cc/moez");
             if (response.ok) {
                 const buffer = Buffer.from(await response.arrayBuffer());
                 await fs.writeFile(PATHS.background, buffer);

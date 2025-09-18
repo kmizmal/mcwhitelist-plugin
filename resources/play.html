@@ -3,25 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <style>
       :root {
         --background: #f8fafc;
         --foreground: #334155;
         --card: #ffffff;
-        --card-foreground: #1e293b;
         --primary: #059669;
         --primary-foreground: #ffffff;
-        --secondary: #10b981;
-        --secondary-foreground: #ffffff;
         --muted: #f1f5f9;
-        --muted-foreground: #64748b;
-        --accent: #10b981;
-        --accent-foreground: #ffffff;
         --border: #e2e8f0;
         --radius: 0.75rem;
-        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
       }
 
       * {
@@ -30,84 +21,57 @@
         box-sizing: border-box;
       }
 
-      body {
+      html, body {
+        /* height: 1000px; */
+        width: 1000px;
         font-family: "Inter";
-        /* background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); */
-        border: solid 1px red;
-        color: var(--foreground);
-        width: 1200px;
-        line-height: 1.2;
         background: url("<%= _res_path %>/background.jpg") center/cover no-repeat;
-      }
-
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 1rem;
+        line-height: 1.2;
       }
 
       .header {
         text-align: center;
         margin: 15px;
         padding: 10px;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        background: linear-gradient(135deg, rgba(79, 154, 149, 0.5) 0%, rgba(110, 42, 156, 0.5) 100%);
         border-radius: var(--radius);
         color: var(--primary-foreground);
-        box-shadow: var(--shadow-lg);
       }
-
+      .header+img{
+        float: left;
+        margin-left: 15px;
+      }
       .header h1 {
         font-weight: 700;
-        margin-bottom: 0.5rem;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-
-      .header p {
-        opacity: 0.9;
+        margin-bottom: 10px;
       }
 
       .stats-grid {
+        width: 800px;
+        margin: 10px auto;
+        opacity: .8;
         display: grid;
-        width: 1000px;
-        margin: 0 auto;
         grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
         gap: 30px;
+        padding: 15px;
       }
-      .skins {
-        float: left;
-      }
+
       .card {
-        background: var(--card);
         border-radius: var(--radius);
-        padding: 2rem;
-        box-shadow: var(--shadow);
+        padding: 10px;
         border: 1px solid var(--border);
-        position: relative;
-        overflow: hidden;
-        opacity: 0.8;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       }
-
-      .card::before {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--primary), var(--secondary));
-      }
-
-      .card h3 {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: var(--card-foreground);
-      }
+      .card:nth-child(4n+1) { background: linear-gradient(135deg, rgba(255, 162, 196, 0.15), rgba(255, 162, 196, 0.05)), var(--card); }
+      .card:nth-child(4n+2) { background: linear-gradient(135deg, rgba(0, 188, 212, 0.15), rgba(0, 188, 212, 0.05)), var(--card); }
+      .card:nth-child(4n+3) { background: linear-gradient(135deg, rgba(3, 169, 244, 0.15), rgba(3, 169, 244, 0.05)), var(--card); }
+      .card:nth-child(4n+4) { background: linear-gradient(135deg, rgba(57, 197, 187, 0.15), rgba(0, 165, 150, 0.05)), var(--card); }
+      
 
       .stat-item {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 0;
+        padding: 12px 0;
         border-bottom: 1px solid var(--muted);
       }
 
@@ -121,121 +85,78 @@
     </style>
   </head>
   <body>
-    <div class="container">
-      <div class="header">
-        <h1><i class="fas fa-cube"></i> 玩家统计信息</h1>
-        <p>探索你的 Minecraft 世界数据</p>
+    <div class="header">
+      <h1>玩家统计信息</h1>
+      <p>探索你的 Minecraft 世界数据</p>
+    </div>
+    <img src="<%= _res_path %>/skins/<%= uuid %>.png">
+    <!-- <img src="https://crafatar.com/renders/body/853c80ef3c3749fdaa49938b674adae6"> -->
+    <div class="stats-grid">
+      <div class="card">
+        <div class="stat-item">
+          <span>总在线时长</span>
+          <span class="stat-value highlight"><%= playtime %></span>
+        </div>
+        <div class="stat-item">
+          <span>死亡次数</span>
+          <span class="stat-value danger"><%= deaths %></span>
+        </div>
+        <div class="stat-item">
+          <span>总击杀数</span>
+          <span class="stat-value highlight"><%= totalKills %></span>
+        </div>
+        <div class="stat-item">
+          <span>睡觉次数</span>
+          <span class="stat-value"><%= sleep %> 次</span>
+        </div>
       </div>
-      <div class="skins"><img src="<%= _res_path %>/skins/<%= uuid %>.png" /></div>
-      <!-- <div class="skins">
-         <img src="https://crafatar.com/renders/body/853c80ef3c3749fdaa49938b674adae6" /> 
-      </div> -->
-      <div class="stats-grid">
-        <div class="card">
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-clock"></i>
-              总在线时长
-            </span>
-            <span class="stat-value highlight"><%= playtime %></span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-skull"></i>
-              死亡次数
-            </span>
-            <span class="stat-value danger"><%= deaths %></span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-sword"></i>
-              总击杀数
-            </span>
-            <span class="stat-value highlight"><%= totalKills %></span>
-          </div>
-        </div>
 
-        <div class="card">
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-cube"></i>
-              总挖掘方块数
-            </span>
-            <span class="stat-value"><%= totalMineds.toLocaleString() %></span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-gem"></i>
-              钻石矿石
-            </span>
-            <span class="stat-value highlight"><%= diamond %> 个</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-fire"></i>
-              远古残骸
-            </span>
-            <span class="stat-value highlight"><%= debris %> 个</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-plane"></i>
-              飞行距离
-            </span>
-            <span class="stat-value"><%= fly.toLocaleString() %> 格</span>
-          </div>
+      <div class="card">
+        <div class="stat-item">
+          <span>总挖掘方块数</span>
+          <span class="stat-value"><%= totalMineds.toLocaleString() %></span>
         </div>
+        <div class="stat-item">
+          <span>钻石矿石</span>
+          <span class="stat-value highlight"><%= diamond %> 个</span>
+        </div>
+        <div class="stat-item">
+          <span>远古残骸</span>
+          <span class="stat-value highlight"><%= debris %> 个</span>
+        </div>
+      </div>
 
-        <div class="card">
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-fish"></i>
-              钓鱼数
-            </span>
-            <span class="stat-value"><%= fish %> 次</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-handshake"></i>
-              与村民交易数
-            </span>
-            <span class="stat-value"><%= traded %> 次</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">
-              <i class="fas fa-walking"></i>
-              行走距离
-            </span>
-            <span class="stat-value"><%= walk.toLocaleString() %> 格</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label"> 睡觉次数 </span>
-            <span class="stat-value"><%= sleep %> 次</span>
-          </div>
+      <div class="card">
+        <div class="stat-item">
+          <span>钓鱼数</span>
+          <span class="stat-value"><%= fish %> 次</span>
         </div>
-        <div class="card">
-          <div class="stat-item">
-            <span class="stat-label">总成就</span>
-            <div class="stat-value">
-              <%= ((diamond || 0) + (debris || 0) + (fish || 0) + (traded || 0)) / 10 %>
-            </div>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">总移动距离</span>
-            <span class="stat-value"><%= (walk + fly).toLocaleString() %></span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">活跃度</span>
-            <span class="stat-value"><%= (totalKills + fish + traded + sleep) / 100 %></span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">数据更新</span>
-            <span id="time" style="font-size: 1rem">刚刚</span>
-          </div>
-          <script>
-            document.getElementById("time").innerText = new Date().toLocaleString();
-          </script>
+        <div class="stat-item">
+          <span>与村民交易数</span>
+          <span class="stat-value"><%= traded %> 次</span>
         </div>
+        <div class="stat-item">
+          <span>行走距离</span>
+          <span class="stat-value"><%= walk.toLocaleString() %> 格</span>
+        </div>
+        <div class="stat-item">
+          <span>飞行距离</span>
+          <span class="stat-value"><%= fly.toLocaleString() %> 格</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="stat-item">
+          <span>活跃度</span>
+          <span class="stat-value"><%= (totalKills + fish + traded + sleep) / 100 %></span>
+        </div>
+        <div class="stat-item">
+          <span>数据更新</span>
+          <span id="time">刚刚</span>
+        </div>
+        <script>
+          document.getElementById("time").innerText = new Date().toLocaleString();
+        </script>
       </div>
     </div>
   </body>
