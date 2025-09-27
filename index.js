@@ -30,7 +30,7 @@ export class TextMsg extends plugin {
                     fnc: 'help'
                 },
                 {
-                    reg: '^#?mcwf(\\S+)$',
+                    reg: '^#?mcwf\\S+$',
                     fnc: 'queryUser'
                 },
                 {
@@ -72,6 +72,7 @@ export class TextMsg extends plugin {
 
     async addPlayer(e) {
         await this.ensureInitialized();
+        const config = await this.manager.loadConfig();
 
         const user_id = e.user_id;
         if (!this.manager.list[user_id]) {
@@ -91,8 +92,8 @@ export class TextMsg extends plugin {
             return true;
         }
 
-        const config = await this.manager.loadConfig();
-        if (this.manager.list[user_id].length >= config.maxbind) {
+
+        if (this.manager.list[user_id].length >= Number(config.maxbind)) {
             e.reply(
                 `你已达到白名单上限，请删除一些不需要的玩家喵~`,
                 true
@@ -162,7 +163,7 @@ export class TextMsg extends plugin {
                 const match = result.match(/Player\s+(\S+)\s+removed/i);
                 const actualPlayer = match ? match[1] : player;
 
-                e.reply(`已从服务器中删除 ${actualPlayer} 的白名单喵~`, true); // 回复删除成功
+                e.reply(`已从服务器中删除 ${actualPlayer} 的白名单喵~`, true);
             } catch (error) {
                 console.error("删除玩家API请求失败:", error);
                 e.reply("从服务器删除玩家失败，请稍后重试喵~", true, { recallMsg: CONFIG.RECALL_TIME });
@@ -194,7 +195,7 @@ export class TextMsg extends plugin {
     async queryUser(e) {
         await this.ensureInitialized();
 
-        const match = e.msg.match(/^#?mcwf(\S+)$/);
+        const match = e.msg.match(/^#?mcwf\S+$/);
         const player = match ? match[1].trim() : null;
 
         if (!player) {
@@ -240,7 +241,6 @@ export class TextMsg extends plugin {
             }
             const players = json.players.list;
             let arkCount = 0;
-            // console.log(players);
             const today = new Date().toISOString().slice(0, 10);
             // 并发下载头像
             const avatarPromises = players.map(async (player, index) => {
@@ -249,14 +249,13 @@ export class TextMsg extends plugin {
                     return null;
                 }
                 try {
-                    if (McWhitelistManager.avatarCache[player.uuid] === today) {
-                        return null;
+                    if (McWhitelistManager.avatarCache[player.uuid] != today) {
+                        await this.manager.downloadAvatar(player.uuid, index)
                     }
                 } catch {
-                    //没必要处理
+                    await this.manager.downloadAvatar(player.uuid, index)
                 }
 
-                await this.manager.downloadAvatar(player.uuid, index)
 
                 return { uuid: player.uuid, name: player.name_clean };
             });
@@ -390,7 +389,6 @@ export class TextMsg extends plugin {
                 walk: walk.toFixed(0),
                 sleep
             }, { scale: CONFIG.RENDER_SCALE, e });
-            return true;
         } catch (error) {
             console.error('获取统计信息失败:', error);
             e.reply("获取统计信息失败喵~");
@@ -416,7 +414,6 @@ export class TextMsg extends plugin {
                 const count = Math.floor(remaining / value);
                 remaining %= value;
 
-                // 只显示非零的时间单位
                 if (count > 0) {
                     result.push(`${count}${unit}`);
 

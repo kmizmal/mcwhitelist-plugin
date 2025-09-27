@@ -40,9 +40,9 @@ export function supportGuoba() {
       description: '通过聊天命令即可添加白名单，无需进入服务器后台操作。',
       // 显示图标，此为个性化配置
       // 图标可在 https://icon-sets.iconify.design 这里进行搜索
-      icon: 'bx:atom',
+      icon: 'mdi:minecraft',
       // 图标颜色，例：#FF0000 或 rgb(255, 0, 0)
-      iconColor: 'rgb(241,212,152)',
+      iconColor: 'rgba(152, 241, 234, 1)',
       // 如果想要显示成图片，也可以填写图标路径（绝对路径）
       // iconPath: path.join(_paths.pluginRoot, 'resources/images/icon.png'),
     },
@@ -110,7 +110,9 @@ export function supportGuoba() {
         return {
           mcwhapi: config.mcwhapi || '',
           mcwhkey: config.mcwhkey || '',
-          maxbind: config.maxbind || 3,
+          maxbind: config.maxbind || 1,
+          serverName: config.serverName || '',
+          mcserver: config.mcserver || ''
         }
       },
 
