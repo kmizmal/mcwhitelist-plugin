@@ -14,6 +14,10 @@ const PATHS = {
 };
 export const CONFIG = {
     REQUEST_TIMEOUT: 10000,
+    REQUEST_RETRIES: 2,
+    REQUEST_RETRY_DELAY: 500,
+    REQUEST_BACKOFF_FACTOR: 2,
+    RETRY_STATUS_CODES: [408, 425, 429, 500, 502, 503, 504],
     AVATAR_SIZE: 64,
     RENDER_SCALE: 1.2,
     RECALL_TIME: 15,
@@ -25,6 +29,61 @@ export class McWhitelistManager {
         this.skinCache = {};
         this.list = {};
         this.config = null;
+    }
+
+    delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    isRetryableError(error) {
+        if (!error) return false;
+        if (error.name === 'AbortError') {
+            return true;
+        }
+        const retryableCodes = ['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'ETIMEDOUT', 'EAI_AGAIN', 'ECONNABORTED', 'ENOTFOUND'];
+        return retryableCodes.includes(error.code) || error.type === 'system';
+    }
+
+    async fetchWithRetry(url, options = {}, overrides = {}) {
+        const {
+            timeout = CONFIG.REQUEST_TIMEOUT,
+            retries = CONFIG.REQUEST_RETRIES,
+            retryDelay = CONFIG.REQUEST_RETRY_DELAY,
+            backoffFactor = CONFIG.REQUEST_BACKOFF_FACTOR,
+            retryOnStatuses = CONFIG.RETRY_STATUS_CODES
+        } = overrides;
+
+        const maxAttempts = Math.max(1, retries + 1);
+        let lastError = null;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const controller = new AbortController();
+            const attemptOptions = { ...options, signal: controller.signal };
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch(url, attemptOptions);
+                clearTimeout(timeoutId);
+
+                if (!response.ok && retryOnStatuses.includes(response.status) && attempt + 1 < maxAttempts) {
+                    await this.delay(retryDelay * Math.pow(backoffFactor, attempt));
+                    continue;
+                }
+
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                lastError = error;
+
+                if (attempt + 1 >= maxAttempts || !this.isRetryableError(error)) {
+                    throw error;
+                }
+
+                await this.delay(retryDelay * Math.pow(backoffFactor, attempt));
+            }
+        }
+
+        throw lastError ?? new Error('Request failed after retries');
     }
 
     async initialize() {
@@ -177,19 +236,13 @@ export class McWhitelistManager {
                 ? config.mcwhapi
                 : `http://${config.mcwhapi}`;
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-
-            const response = await fetch(`${apiUrl}/whitelist/${action}?player=${player}`, {
+            const response = await this.fetchWithRetry(`${apiUrl}/whitelist/${action}?player=${player}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${config.mcwhkey}`
-                },
-                signal: controller.signal
+                }
             });
-
-            clearTimeout(timeoutId);
 
             if (response.status === 401) {
                 console.warn('鉴权密钥错误');
@@ -220,11 +273,7 @@ export class McWhitelistManager {
             await new Promise(resolve => setTimeout(resolve, index * delay));
 
             const avatarUrl = `https://crafatar.com/renders/head/${uuid}?size=${CONFIG.AVATAR_SIZE}&overlay`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-
-            const response = await fetch(avatarUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            const response = await this.fetchWithRetry(avatarUrl);
 
             if (!response.ok) {
                 throw new Error(`无法获取 ${uuid} 的头像: ${response.status}`);
@@ -246,10 +295,7 @@ export class McWhitelistManager {
         try {
             const today = new Date().toISOString().slice(0, 10);
             const skinUrl = `https://crafatar.com/renders/body/${uuid}`;
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
-            const response = await fetch(skinUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            const response = await this.fetchWithRetry(skinUrl);
             if (!response.ok) {
                 throw new Error(`无法获取 ${uuid} 的皮肤: ${response.status}`);
             }
@@ -265,10 +311,12 @@ export class McWhitelistManager {
 
     async downloadBackground() {
         try {
-            const response = await fetch("https://t.alcy.cc/moez");
+            const response = await this.fetchWithRetry("https://t.alcy.cc/moez");
             if (response.ok) {
                 const buffer = Buffer.from(await response.arrayBuffer());
                 await fs.writeFile(PATHS.background, buffer);
+            } else {
+                console.warn(`下载背景图失败，状态码: ${response.status}`);
             }
         } catch (error) {
             console.error("下载背景图失败:", error);

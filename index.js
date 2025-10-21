@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { CONFIG, McWhitelistManager } from "./McWhitelistManager.js";
 
 export class TextMsg extends plugin {
@@ -232,7 +231,10 @@ export class TextMsg extends plugin {
                 : "mcwhitelist";
 
             const url = `https://api.mcstatus.io/v2/status/java/${server}`;
-            const response = await fetch(url);
+            const response = await this.manager.fetchWithRetry(url);
+            if (!response.ok) {
+                throw new Error(`状态接口响应失败: ${response.status}`);
+            }
             const json = await response.json();
 
             if (!json.online) {
@@ -275,13 +277,16 @@ export class TextMsg extends plugin {
                     ? config.mcwhapi
                     : `http://${config.mcwhapi}`;
 
-                const tpsRes = await fetch(`${apiUrl}/server/tps`, {
+                const tpsRes = await this.manager.fetchWithRetry(`${apiUrl}/server/tps`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
                         'Authorization': `Bearer ${config.mcwhkey}`
                     }
                 });
+                if (!tpsRes.ok) {
+                    throw new Error(`TPS接口响应失败: ${tpsRes.status}`);
+                }
                 tpsData = parseFloat(await tpsRes.text()).toFixed(2);
             } catch (error) {
                 console.error('获取TPS失败:', error);
@@ -330,13 +335,16 @@ export class TextMsg extends plugin {
                 ? config.mcwhapi
                 : `http://${config.mcwhapi}`;
 
-            const StatsRes = await fetch(`${apiUrl}/server/playStats/?player=${player}`, {
+            const StatsRes = await this.manager.fetchWithRetry(`${apiUrl}/server/playStats/?player=${player}`, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${config.mcwhkey}`
                 }
             });
+            if (!StatsRes.ok) {
+                throw new Error(`玩家统计接口响应失败: ${StatsRes.status}`);
+            }
             // console.log(await StatsRes.text()); 
             const playStats = await StatsRes.json();
             // console.log(playStats);
