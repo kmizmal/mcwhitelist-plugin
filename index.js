@@ -21,7 +21,7 @@ export class TextMsg extends plugin {
                     fnc: 'deletePlayer'
                 },
                 {
-                    reg: '^#?mcw(?!l)\\s+(\\S+)$',
+                    reg: '^#?mcw\\s+(\\S+)$',
                     fnc: 'addPlayer'
                 },
                 {
@@ -124,7 +124,7 @@ export class TextMsg extends plugin {
 
         try {
             const user = await this.manager.getUserFromMessage(e);
-            const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/); // 正则匹配玩家名
+            const match = e.msg.match(/^#?mcw\s*删\s*(\S+)?$/);
             const player = match ? match[1]?.trim() : null;
 
             // 如果没有玩家名，默认删除最后一个玩家
@@ -132,7 +132,7 @@ export class TextMsg extends plugin {
                 if (this.manager.list[user.user_id] && this.manager.list[user.user_id].length > 0) {
                     const removedPlayer = this.manager.list[user.user_id].pop(); // 删除最后一个
                     await this.manager.savePlayerList(); // 保存更新后的白名单
-                    e.reply(`已删除 ${removedPlayer} 的白名单喵~`, true); // 回复删除的玩家
+                    e.reply(`已删除 ${removedPlayer} 的白名单喵~`, true);
                     return true;
                 } else {
                     e.reply("你还没有添加任何白名单喵~", true, { recallMsg: CONFIG.RECALL_TIME });
@@ -148,7 +148,6 @@ export class TextMsg extends plugin {
                 return true;
             }
 
-            // 删除指定玩家
             this.manager.list[user.user_id].splice(index, 1); // 删除指定玩家
             await this.manager.savePlayerList(); // 保存更新后的白名单
 
